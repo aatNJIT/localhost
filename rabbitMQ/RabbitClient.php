@@ -1,4 +1,5 @@
 <?php
+
 class RabbitClient
 {
     public static $connection = null;

@@ -1,7 +1,5 @@
 <?php
 
-require_once('rabbitMQ/get_host_info.inc');
-
 class rabbitMQServer
 {
 	private $machine = "";
