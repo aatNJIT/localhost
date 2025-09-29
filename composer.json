@@ -1,7 +1,0 @@
-{
-  "require": {
-    "php-amqplib/php-amqplib": "^2.0",
-    "ext-json": "*",
-    "ext-amqp": "*"
-  }
-}
