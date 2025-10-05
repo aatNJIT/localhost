@@ -11,9 +11,9 @@ if ($mydb->errno != 0)
 	exit(0);
 }
 
-echo "successfully connected to users".PHP_EOL;
+echo "successfully connected to Users".PHP_EOL;
 
-$query = "select * from users;";
+$query = "select * from Users;";
 
 $response = $mydb->query($query);
 if ($mydb->errno != 0)
@@ -25,7 +25,7 @@ if ($mydb->errno != 0)
 // User test variables
 $test_username = "testuser";
 $test_password = "password";
-$it490db = "INSERT INTO users (username, password) VALUES (?, ?)";
+$it490db = "INSERT INTO Users (Username, Password) VALUES (?, ?)";
 
 $stmt = $mydb->prepare($it490db);
 
@@ -46,3 +46,4 @@ if ($stmt !== false) {
 $mydb->close();
 
 ?>
+
