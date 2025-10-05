@@ -7,7 +7,7 @@ require_once('../rabbitMQ/rabbitMQLib.inc');
 require_once('../rabbitMQ/RabbitClient.php');
 
 if (!isset($_POST['username']) || !isset($_POST['password'])) {
-    header('Location: ../login.html');
+    header('Location: ../loggedin.html');
     exit();
 }
 
@@ -15,7 +15,7 @@ $username = $_POST["username"];
 $password = $_POST["password"];
 
 if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
-    header('Location: ../login.html');
+    header('Location: ../loggedin.html');
     exit();
 }
 
@@ -27,5 +27,5 @@ $request['password'] = $password;
 $client = RabbitClient::getConnection();
 $response = $client->send_request($request);
 
-header('Location: ../login.html');
+header('Location: ../loggedin.html');
 exit();
