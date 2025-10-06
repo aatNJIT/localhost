@@ -1,5 +1,8 @@
 <?php
 
+require_once('get_host_info.inc');
+require_once('rabbitMQLib.inc');
+
 class RabbitClient
 {
     public static $connection = null;

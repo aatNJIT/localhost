@@ -1,0 +1,10 @@
+1. /etc/php/{version}/apache2/php.ini
+
+2. Scroll down to until you see [Sessions] section:
+session.cookie_lifetime = 0
+session.cookie_path = /
+session.cookie_samesite = Strict
+session.use_strict_mode = 1
+
+3. Comment out any of the lines below that match any of the lines that match the ones above in step #2. You shouldn't have to scroll too far, they're close.
+
