@@ -1,0 +1,41 @@
+<?php return array(
+    'root' => array(
+        'name' => '__root__',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => 'f7cb259f43c9e8f62736d9d28acf7ddf4239004c',
+        'type' => 'library',
+        'install_path' => __DIR__ . '/../../',
+        'aliases' => array(),
+        'dev' => true,
+    ),
+    'versions' => array(
+        '__root__' => array(
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => 'f7cb259f43c9e8f62736d9d28acf7ddf4239004c',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'php-amqplib/php-amqplib' => array(
+            'pretty_version' => 'v2.6.0',
+            'version' => '2.6.0.0',
+            'reference' => '8a6e89ad46130eb365b7f57d313f2a795f5e3269',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../php-amqplib/php-amqplib',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'videlalvaro/php-amqplib' => array(
+            'pretty_version' => 'v2.5.2',
+            'version' => '2.5.2.0',
+            'reference' => 'eb8f94d97c8e79900accf77343dbd7eca7f58506',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../videlalvaro/php-amqplib',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+    ),
+);
