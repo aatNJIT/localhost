@@ -2,7 +2,7 @@
 <html lang="en" xmlns="http://www.w3.org/1999/html" data-theme="dark">
 
 <head>
-    <title>IT-491 - Index</title>
+    <title>IT-490 - Index</title>
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
@@ -15,7 +15,7 @@
         <nav>
             <ul>
                 <img src="assets/albert.gif" alt="albert">
-                <li><strong>IT-491</strong></li>
+                <li><strong>IT-490</strong></li>
             </ul>
             <ul>
                 <?php

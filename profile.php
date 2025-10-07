@@ -6,7 +6,7 @@ require_once('session.php');
 <html lang="en" data-theme="dark">
 
 <head>
-    <title>IT-491 - Login</title>
+    <title>IT-490 - Login</title>
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
@@ -19,7 +19,7 @@ require_once('session.php');
         <nav>
             <ul>
                 <img src="assets/albert.gif" alt="albert">
-                <li><strong>IT-491</strong></li>
+                <li><strong>IT-490</strong></li>
             </ul>
             <ul>
                 <li>

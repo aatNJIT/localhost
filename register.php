@@ -10,7 +10,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
     if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
         $errorMessage = 'Invalid username or password';
-    } else {
+    } 
+    
+    else {
         $request = array();
         $request['type'] = 'register';
         $request['username'] = $username;
@@ -21,7 +23,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
         if ($response) {
             $successMessage = 'Registered Successfully';
-        } else {
+        }
+        
+        else {
             $errorMessage = 'Failed To Register';
         }
     }
@@ -32,7 +36,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 <html lang="en" data-theme="dark">
 
 <head>
-    <title>IT-491 - Register</title>
+    <title>IT-490 - Register</title>
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
@@ -45,7 +49,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         <nav>
             <ul>
                 <img src="assets/albert.gif" alt="albert">
-                <li><strong>IT-491</strong></li>
+                <li><strong>IT-490</strong></li>
             </ul>
             <ul>
                 <li>
