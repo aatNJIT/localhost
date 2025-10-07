@@ -11,10 +11,117 @@ require_once('mysqlconnect.php'); // automatically creates database connection
 
 function doLogin($username,$password)
 {
-    // lookup username in database
-    // check password
-    return true;
-    //return false if not valid
+  global $mydb;
+
+  if (empty($username) || empty($password)) {
+    return array("returnCode" => '1', 
+    'message'=>"Username or Password cannot be empty. Please try again.");
+  }
+
+  $stmt = $mydb->prepare("SELECT password FROM users WHERE username = ?");
+  if (!$stmt) {
+    return array("returnCode" => '1', 
+    'message'=>"Database Error: " . $mydb->error);
+  }
+
+  $stmt->bind_param("s", $username);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  if ($result->num_rows === 0) {
+    $stmt->close();
+    return array("returnCode" => '1', 
+    'message'=>"Invalid username or password. Please try again.");
+  }
+
+  $row = $result->fetch_assoc();
+
+  if (!password_verify($password, $row['password'])) {
+    $stmt->close();
+    return array("returnCode" => '1', 
+    'message'=>"Invalid username or password. Please try again.");
+  }
+
+  $stmt->close();
+  return array("returnCode" => '0', 'message'=>"Login successful");
+
+  $sessionId = bin2hex(random_bytes(32));
+  $userId = $user['id'];
+  $currentTimestamp = date('Y-m-d H:i:s');
+
+  $stmt = $mydb->prepare("INSERT INTO sessions (session_id, user_id, last_active) VALUES (?, ?, ?)");
+  if (!$stmt) {
+    return array("returnCode" => '1', 
+    'message'=>"Database Error: " . $mydb->error);
+  }
+
+  $stmt->bind_param("sis", $sessionId, $userId, $currentTimestamp);
+  $stmt->execute();
+  $stmt->close();
+
+  return array("returnCode" => '0', 'message'=>"Login successful");
+
+  if (!$stmt->execute()) {
+    return array("returnCode" => '1', 
+    'message'=>"Database Error: " . $stmt->error);
+  }
+
+  $stmt->close();
+
+  return array("returnCode" => '0', 'message'=>"Login successful", "sessionId" => $sessionId, "userId" => $userId, "username" => $username);
+
+}
+
+function doLogout($sessionId)
+{
+  global $mydb;
+  
+  if (empty($sessionId)) {
+    return array("returnCode" => '1', 
+    'message'=>"Session ID is required and cannot be empty.");
+  }
+
+  $stmt = $mydb->prepare("DELETE FROM sessions WHERE session_id = ?");
+  if (!$stmt) {
+    return array("returnCode" => '1', 
+    'message'=>"Database Error: " . $mydb->error);
+  }
+
+  $stmt->bind_param("s", $sessionId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $stmt->close();
+
+  if ($result->num_rows === 0) {
+    return array("returnCode" => '1', 
+    'message'=>"Invalid or expired session ID.");
+  }
+
+  $sessionData = $result->fetch_assoc();
+
+  $stmt->close();
+  return array("returnCode" => '0', 'message'=>"Logout successful");
+
+  $stmt = $mydb->prepare("DELETE FROM sessions WHERE session_id = ?");
+  if (!$stmt) {
+    return array("returnCode" => '1', 
+    'message'=>"Database Error: " . $mydb->error);
+  }
+
+  $stmt->bind_param("s", $sessionId);
+  if (!$stmt->execute()) {
+    return array("returnCode" => '1',
+    'message'=>"Failed to invalidate session: " . $stmt->error);
+  }
+
+  $stmt->store_result();
+  $stmt->bind_result($sessionId, $userId, $lastActive);
+  $stmt->fetch();
+
+  $stmt->close();
+
+  return array("returnCode" => '0', 'message'=>"Logout successful", "sessionId" => $sessionId, "userId" => $userId, "lastActive" => $lastActive);
+
 }
 
 function doRegister($username, $password)
