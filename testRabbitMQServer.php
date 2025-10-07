@@ -3,7 +3,7 @@
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
-// require_once('mysqlconnect.php');
+require_once('mysqlconnect.php');
 
 function doLogin($username,$password)
 {
@@ -11,6 +11,15 @@ function doLogin($username,$password)
     // check password
     return true;
     //return false if not valid
+
+    // Sammy will work here
+}
+
+function doRegister()
+{
+  global $mydb;
+
+  // Anthony will work here
 }
 
 function requestProcessor($request)
