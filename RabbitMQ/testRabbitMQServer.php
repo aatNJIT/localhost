@@ -96,7 +96,7 @@ function checkSession($sessionID, $userID): bool
         return false;
     }
 
-    $inactivity = $session['inactivityAsSeconds '];
+    $inactivity = $session['inactivityAsSeconds'];
     if ($inactivity > 30) {
         $deleteStatement = $connection->prepare("DELETE FROM Sessions WHERE sessionID = ? AND userID = ?");
         $deleteStatement->bind_param("ii", $sessionID, $userID);
