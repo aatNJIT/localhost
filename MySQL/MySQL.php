@@ -7,7 +7,7 @@ class MySQL
     static function getConnection()
     {
         if (self::$connection == null) {
-            self::$connection = new mysqli('100.86.244.3', 'it490', 'YourSecurePassword','it490');
+            self::$connection = new mysqli('127.0.0.1', 'it490', 'it490','it490');
         }
         return self::$connection;
     }

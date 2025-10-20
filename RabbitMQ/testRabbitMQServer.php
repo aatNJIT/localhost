@@ -43,6 +43,7 @@ function login($username, $password)
         return array(
                 'userID' => $userID,
                 'username' => $username,
+                'steamID' => $user['SteamID'],
                 'sessionID' => $sessionID
         );
     } else {
@@ -61,9 +62,8 @@ function register($username, $password): bool
     $existsStatement = $connection->prepare("SELECT ID FROM Users WHERE Username = ?");
     $existsStatement->bind_param("s", $username);
     $existsStatement->execute();
-    $result = $existsStatement->get_result();
 
-    if ($result->num_rows > 0) {
+    if ($existsStatement->get_result()->num_rows > 0) {
         return false;
     }
 
@@ -97,7 +97,7 @@ function checkSession($sessionID, $userID): bool
     }
 
     $inactivity = $session['inactivityAsSeconds'];
-    if ($inactivity > 30) {
+    if ($inactivity > 3600) {
         $deleteStatement = $connection->prepare("DELETE FROM Sessions WHERE sessionID = ? AND userID = ?");
         $deleteStatement->bind_param("ii", $sessionID, $userID);
         $deleteStatement->execute();
@@ -124,6 +124,60 @@ function logout($sessionID, $userID): bool
     return true;
 }
 
+function linkSteamAccount($userID, $steamID): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->errno != 0) {
+        return false;
+    }
+
+    $userExistsStatement = $connection->prepare("SELECT ID FROM Users WHERE ID = ?");
+    $userExistsStatement->bind_param("i", $userID);
+    $userExistsStatement->execute();
+
+    if ($userExistsStatement->get_result()->num_rows <= 0) {
+        return false;
+    }
+
+    $duplicateSteamIdStatement = $connection->prepare("SELECT ID FROM Users WHERE SteamID = ? AND ID != ?");
+    $duplicateSteamIdStatement->bind_param("si", $steamID, $userID);
+    $duplicateSteamIdStatement->execute();
+
+    if ($duplicateSteamIdStatement->get_result()->num_rows > 0) {
+        return false;
+    }
+
+    $updateStatement = $connection->prepare("UPDATE Users SET SteamID = ? WHERE ID = ?");
+    $updateStatement->bind_param("si", $steamID, $userID);
+    $updateStatement->execute();
+
+    return $updateStatement->affected_rows > 0;
+}
+
+function unlinkSteamAccount($userID): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->errno != 0) {
+        return false;
+    }
+
+    $existsStatement = $connection->prepare("SELECT ID FROM Users WHERE ID = ?");
+    $existsStatement->bind_param("i", $userID);
+    $existsStatement->execute();
+
+    if ($existsStatement->get_result()->num_rows <= 0) {
+        return false;
+    }
+
+    $updateStatement = $connection->prepare("UPDATE Users SET SteamID = NULL WHERE ID = ?");
+    $updateStatement->bind_param("i", $userID);
+    $updateStatement->execute();
+
+    return $updateStatement->affected_rows > 0;
+}
+
 function requestProcessor($request)
 {
     echo var_dump($request) . PHP_EOL;
@@ -142,6 +196,10 @@ function requestProcessor($request)
         return checkSession($request['sessionID'], $request['userID']);
     } else if ($type == 'logout') {
         return logout($request['sessionID'], $request['userID']);
+    } else if ($type == 'link') {
+        return linkSteamAccount($request['userID'], $request['steamID']);
+    } else if ($type == 'unlink') {
+        return unlinkSteamAccount($request['userID']);
     }
 
     return false;
