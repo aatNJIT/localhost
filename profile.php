@@ -36,11 +36,13 @@ require_once('session.php');
         <?php echo '<div align="center"> You are ' . $_SESSION['username'] . '</div>' ?>
     </div>
 
-    <div class="steamlogin">
-        <a href="init-openId.php">
-            <span>Login with Steam</span>
-        </a>
-    </div>
+    <form action="lookup.php" method="get">
+        <label>Enter SteamID64:</label>
+        <input type="text" name="steamid" required>
+        <button type="submit">Lookup</button>
+    </form>
+
+
 
 </main>
 </body>
