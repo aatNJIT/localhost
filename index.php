@@ -1,4 +1,5 @@
 <?php session_start(); ?>
+<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/html" data-theme="dark">
 
 <head>
@@ -14,7 +15,6 @@
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav>
             <ul>
-                <img src="assets/albert.gif" alt="albert">
                 <li><strong>IT-490</strong></li>
             </ul>
             <ul>
@@ -23,6 +23,15 @@
                     echo '<li>
                         <a href="profile.php"> <i class="fa-solid fa-user"></i> Profile</a>
                     </li>';
+
+                    if (isset($_SESSION['steamid'])) {
+                        echo '<li>
+                        <a href="games.php">
+                            <i class="fa-solid fa-gamepad"></i> Games
+                        </a>
+                        </li>';
+                    }
+
                     echo '<li>
                         <a href="logout.php"> <i class="fa-solid fa-right-from-bracket"></i> Logout</a>
                     </li>';

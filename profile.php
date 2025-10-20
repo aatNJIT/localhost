@@ -1,5 +1,6 @@
 <?php
 require_once('session.php');
+require 'steam/steamAuth.php';
 ?>
 
 <!DOCTYPE html>
@@ -18,32 +19,59 @@ require_once('session.php');
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav>
             <ul>
-                <img src="assets/albert.gif" alt="albert">
-                <li><strong>IT-490</strong></li>
+                <li>
+                    <strong>IT-490 <?php echo '[' . $_SESSION['username'] . ']' ?></strong>
+                </li>
             </ul>
             <ul>
                 <li>
-                    <a href="index.php"> <i class="fa-solid fa-house">
-                        </i> Index
+                    <a href="index.php">
+                        <i class="fa-solid fa-house"></i> Index
+                    </a>
+                </li>
+                <li>
+                    <a href="games.php">
+                        <i class="fa-solid fa-gamepad"></i> Games
+                    </a>
+                </li>
+                <li>
+                    <a href="logout.php">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
                     </a>
                 </li>
             </ul>
         </nav>
     </article>
 
-    <!-- align has been deprecated for a long time now, but it still works great :D -->
-    <div class="container" style=" margin-top: 1rem; padding-left: 12px; padding-right: 12px">
-        <?php echo '<div align="center"> You are ' . $_SESSION['username'] . '</div>' ?>
-    </div>
+    <article style="margin-top: 1rem; text-align: center;">
+        <?php
 
-    <form action="lookup.php" method="get">
-        <label>Enter SteamID64:</label>
-        <input type="text" name="steamid" required>
-        <button type="submit">Lookup</button>
-    </form>
+        if (!isset($_SESSION['steamid'])) {
+            echo '<p>Link Your Steam Account!</p>';
+            loginButton("rectangle");
+        } else {
+            include('steam/suppliers/userProfile.php');
+            ?>
 
+            <img src="<?php echo $steamProfile["avatar"]; ?>"
+                 alt="Steam Avatar"
+                 style="border-radius: 4px; margin-bottom: 1rem;"
+            >
 
+            <p>
+                <strong><?php echo $steamProfile["personaname"] ?></strong><br>
+                <small>Steam ID: <?php echo $steamProfile["steamid"] ?></small>
+            </p>
 
+            <a href="steam/consumers/unlinkSteamAccount.php" role="button" class="primary">
+                <i class="fa-solid fa-unlink"></i> Unlink Steam Account
+            </a>
+
+            <?php
+        }
+
+        ?>
+    </article>
 </main>
 </body>
 </html>

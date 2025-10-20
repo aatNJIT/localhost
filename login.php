@@ -22,13 +22,16 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
         if (is_array($response) && isset($response['userID']) && isset($response['sessionID']) && isset($response['username'])) {
             session_regenerate_id();
+
             $_SESSION['userID'] = $response['userID'];
             $_SESSION['username'] = $response['username'];
             $_SESSION['sessionID'] = $response['sessionID'];
+            $_SESSION['steamid'] = $response['steamID'];
+
             header('Location: profile.php');
             exit();
         } else {
-            $errorMessage = 'Login Failed';
+            $errorMessage = 'Invalid Username or Password';
         }
     }
 }
@@ -43,6 +46,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+    <!-- I tried downloading font-awesome manually, couldn't get it to work??? -->
 </head>
 
 <body>
@@ -50,7 +54,6 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav>
             <ul>
-                <img src="assets/albert.gif" alt="albert">
                 <li><strong>IT-490</strong></li>
             </ul>
             <ul>
@@ -81,7 +84,6 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         echo '</article>';
     }
     ?>
-
 
     <form method="post">
         <div class="container" style=" margin-top: 1rem; padding-left: 12px; padding-right: 12px">

@@ -3,8 +3,11 @@ session_start();
 
 require_once('rabbitMQ/RabbitClient.php');
 
-function checkSession() {
-    if (!isset($_SESSION['userID']) || !isset($_SESSION['username']) || !isset($_SESSION['sessionID'])) {
+function checkSession()
+{
+    $isLoggedIn = (isset($_SESSION['userID']) && isset($_SESSION['sessionID']));
+
+    if (!$isLoggedIn) {
         header('Location: ../login.php');
         exit();
     }
@@ -18,8 +21,9 @@ function checkSession() {
     $client = RabbitClient::getConnection();
     $response = $client->send_request($request);
 
-    if ($response === false) {
+    if (!$response) {
         session_destroy();
+        session_regenerate_id();
         echo "Expired Session";
         exit();
     }
