@@ -35,6 +35,13 @@ require_once('session.php');
     <div class="container" style=" margin-top: 1rem; padding-left: 12px; padding-right: 12px">
         <?php echo '<div align="center"> You are ' . $_SESSION['username'] . '</div>' ?>
     </div>
+
+    <div class="steamlogin">
+        <a href="init-openId.php">
+            <span>Login with Steam</span>
+        </a>
+    </div>
+
 </main>
 </body>
 </html>
