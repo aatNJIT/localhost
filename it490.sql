@@ -68,7 +68,14 @@ ALTER TABLE `Users`
 --
 -- AUTO_INCREMENT for dumped tables
 --
+ALTER TABLE `Sessions`
+  MODIFY `sessionID` bigint NOT NULL AUTO_INCREMENT;
 
+--
+-- AUTO_INCREMENT for table `Users`
+--
+ALTER TABLE `Users`
+  MODIFY `ID` int NOT NULL AUTO_INCREMENT;
 --
 -- Constraints for dumped tables
 --
