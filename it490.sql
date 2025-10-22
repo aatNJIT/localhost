@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 20, 2025 at 11:19 PM
+-- Generation Time: Oct 22, 2025 at 05:48 AM
 -- Server version: 8.0.43-0ubuntu0.24.04.2
 -- PHP Version: 8.3.6
 
@@ -24,14 +24,43 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `Catalogs`
+--
+
+CREATE TABLE `Catalogs` (
+  `CatalogID` int NOT NULL,
+  `UserID` int NOT NULL,
+  `Title` varchar(255) NOT NULL,
+  `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `Catalog_Games`
+--
+
+CREATE TABLE `Catalog_Games` (
+  `GameID` int NOT NULL,
+  `CatalogID` int NOT NULL,
+  `GameName` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `AppID` int NOT NULL,
+  `Rating` tinyint UNSIGNED NOT NULL,
+  `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `Sessions`
 --
 
 CREATE TABLE `Sessions` (
-  `sessionID` bigint NOT NULL,
-  `userID` int NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `activity` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `SessionID` bigint NOT NULL,
+  `UserID` int NOT NULL,
+  `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Activity` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -52,11 +81,25 @@ CREATE TABLE `Users` (
 --
 
 --
+-- Indexes for table `Catalogs`
+--
+ALTER TABLE `Catalogs`
+  ADD PRIMARY KEY (`CatalogID`),
+  ADD KEY `UserID` (`UserID`);
+
+--
+-- Indexes for table `Catalog_Games`
+--
+ALTER TABLE `Catalog_Games`
+  ADD PRIMARY KEY (`GameID`),
+  ADD KEY `CatalogID` (`CatalogID`);
+
+--
 -- Indexes for table `Sessions`
 --
 ALTER TABLE `Sessions`
-  ADD PRIMARY KEY (`sessionID`),
-  ADD KEY `userID` (`userID`);
+  ADD PRIMARY KEY (`SessionID`),
+  ADD KEY `userID` (`UserID`);
 
 --
 -- Indexes for table `Users`
@@ -68,23 +111,52 @@ ALTER TABLE `Users`
 --
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `Catalogs`
+--
+ALTER TABLE `Catalogs`
+  MODIFY `CatalogID` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `Catalog_Games`
+--
+ALTER TABLE `Catalog_Games`
+  MODIFY `GameID` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `Sessions`
+--
 ALTER TABLE `Sessions`
-  MODIFY `sessionID` bigint NOT NULL AUTO_INCREMENT;
+  MODIFY `SessionID` bigint NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `Users`
 --
 ALTER TABLE `Users`
   MODIFY `ID` int NOT NULL AUTO_INCREMENT;
+
 --
 -- Constraints for dumped tables
 --
 
 --
+-- Constraints for table `Catalogs`
+--
+ALTER TABLE `Catalogs`
+  ADD CONSTRAINT `UserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `Catalog_Games`
+--
+ALTER TABLE `Catalog_Games`
+  ADD CONSTRAINT `CatalogID` FOREIGN KEY (`CatalogID`) REFERENCES `Catalogs` (`CatalogID`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `Sessions`
 --
 ALTER TABLE `Sessions`
-  ADD CONSTRAINT `Sessions_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `Sessions_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
