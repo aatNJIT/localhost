@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 22, 2025 at 05:48 AM
+-- Generation Time: Oct 22, 2025 at 02:46 PM
 -- Server version: 8.0.43-0ubuntu0.24.04.2
 -- PHP Version: 8.3.6
 
@@ -38,6 +38,21 @@ CREATE TABLE `Catalogs` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `Catalog_Comments`
+--
+
+CREATE TABLE `Catalog_Comments` (
+  `CommentID` int NOT NULL,
+  `CatalogID` int NOT NULL,
+  `UserID` int NOT NULL,
+  `Text` text NOT NULL,
+  `Created` timestamp NOT NULL,
+  `Updated` timestamp NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `Catalog_Games`
 --
 
@@ -49,6 +64,18 @@ CREATE TABLE `Catalog_Games` (
   `Rating` tinyint UNSIGNED NOT NULL,
   `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `Followers`
+--
+
+CREATE TABLE `Followers` (
+  `FollowerID` int NOT NULL,
+  `FollowedID` int NOT NULL,
+  `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -88,11 +115,26 @@ ALTER TABLE `Catalogs`
   ADD KEY `UserID` (`UserID`);
 
 --
+-- Indexes for table `Catalog_Comments`
+--
+ALTER TABLE `Catalog_Comments`
+  ADD PRIMARY KEY (`CommentID`),
+  ADD KEY `CommentCatalogID` (`CatalogID`),
+  ADD KEY `CommentUserID` (`UserID`);
+
+--
 -- Indexes for table `Catalog_Games`
 --
 ALTER TABLE `Catalog_Games`
   ADD PRIMARY KEY (`GameID`),
   ADD KEY `CatalogID` (`CatalogID`);
+
+--
+-- Indexes for table `Followers`
+--
+ALTER TABLE `Followers`
+  ADD PRIMARY KEY (`FollowerID`),
+  ADD KEY `FollowedID` (`FollowedID`);
 
 --
 -- Indexes for table `Sessions`
@@ -119,10 +161,22 @@ ALTER TABLE `Catalogs`
   MODIFY `CatalogID` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `Catalog_Comments`
+--
+ALTER TABLE `Catalog_Comments`
+  MODIFY `CommentID` int NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `Catalog_Games`
 --
 ALTER TABLE `Catalog_Games`
   MODIFY `GameID` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `Followers`
+--
+ALTER TABLE `Followers`
+  MODIFY `FollowerID` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `Sessions`
@@ -147,10 +201,24 @@ ALTER TABLE `Catalogs`
   ADD CONSTRAINT `UserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
+-- Constraints for table `Catalog_Comments`
+--
+ALTER TABLE `Catalog_Comments`
+  ADD CONSTRAINT `CommentCatalogID` FOREIGN KEY (`CatalogID`) REFERENCES `Catalogs` (`CatalogID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `CommentUserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `Catalog_Games`
 --
 ALTER TABLE `Catalog_Games`
   ADD CONSTRAINT `CatalogID` FOREIGN KEY (`CatalogID`) REFERENCES `Catalogs` (`CatalogID`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `Followers`
+--
+ALTER TABLE `Followers`
+  ADD CONSTRAINT `FollowedID` FOREIGN KEY (`FollowedID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `FollowerID` FOREIGN KEY (`FollowerID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `Sessions`
