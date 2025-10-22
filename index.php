@@ -1,4 +1,7 @@
-<?php session_start(); ?>
+<?php
+session_start();
+require_once('identifiers.php');
+?>
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/html" data-theme="dark">
 
@@ -7,43 +10,59 @@
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+    <link rel="stylesheet" href="css/fontawesome/css/all.min.css"/>
 </head>
 
 <body>
 <main class="container" style="padding-left: 1rem; padding-right: 1rem">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav>
+        <nav style="justify-content: center">
             <ul>
-                <li><strong>IT-490</strong></li>
-            </ul>
-            <ul>
-                <?php
-                if (isset($_SESSION['sessionID']) && isset($_SESSION['userID']) && isset($_SESSION['username'])) {
-                    echo '<li>
-                        <a href="profile.php"> <i class="fa-solid fa-user"></i> Profile</a>
-                    </li>';
+                <?php if (isset($_SESSION[Identifiers::SESSION_ID]) && isset($_SESSION[Identifiers::USER_ID])): ?>
+                    <li>
+                        <a href="profile.php"> <i class="fa-solid fa-users"></i> Profile</a>
+                    </li>
 
-                    if (isset($_SESSION['steamid'])) {
-                        echo '<li>
-                        <a href="games.php">
-                            <i class="fa-solid fa-gamepad"></i> Games
+                    <li>
+                        <a href="users.php"> <i class="fa-solid fa-users"></i> Users</a>
+                    </li>
+
+                    <?php if (isset($_SESSION[Identifiers::STEAM_ID])) : ?>
+                        <li>
+                            <a href="browse.php">
+                                <i class="fa-solid fa-gamepad"></i> Browse
+                            </a>
+                        </li>
+                        <li>
+                            <a href="createCatalog.php">
+                                <i class="fa-solid fa-plus"></i> Create Catalog
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <li>
+                        <a href="viewUserCatalogs.php?userid=<?= $_SESSION[Identifiers::USER_ID] ?>"> <i
+                                    class="fa-solid fa-list"></i> My Catalogs
                         </a>
-                        </li>';
-                    }
+                    </li>
 
-                    echo '<li>
+                    <li>
                         <a href="logout.php"> <i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-                    </li>';
-                } else {
-                    echo '<li>
+                    </li>
+
+                <?php else: ?>
+                    <li>
                         <a href="login.php"> <i class="fa-solid fa-right-to-bracket"></i> Login</a>
-                    </li>';
-                    echo '<li>
+                    </li>
+
+                    <li>
                         <a href="register.php"> <i class="fa-solid fa-right-to-bracket"></i> Register</a>
-                    </li>';
-                }
-                ?>
+                    </li>
+
+                    <li>
+                        <a href="users.php"> <i class="fa-solid fa-users"></i> Users</a>
+                    </li>
+                <?php endif; ?>
             </ul>
         </nav>
     </article>

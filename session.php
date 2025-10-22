@@ -1,31 +1,33 @@
 <?php
-session_start();
-
+require_once('identifiers.php');
 require_once('rabbitMQ/RabbitClient.php');
 
-function checkSession()
+function checkSession(): void
 {
-    $isLoggedIn = (isset($_SESSION['userID']) && isset($_SESSION['sessionID']));
+    $isLoggedIn = isset($_SESSION[Identifiers::USER_ID]) && isset($_SESSION[Identifiers::SESSION_ID]);
 
     if (!$isLoggedIn) {
-        header('Location: ../login.php');
+        header('Location: login.php');
         exit();
     }
 
-    $request = array(
-        'type' => 'session',
-        'sessionID' => $_SESSION['sessionID'],
-        'userID' => $_SESSION['userID']
-    );
+    // 1 hour on listener
+    $lastSessionCheck = $_SESSION[Identifiers::LAST_SESSION_CHECK] ?? 0;
+    if (time() - $lastSessionCheck >= 900) {
+        $request = array(
+            'type' => RequestType::SESSION,
+            Identifiers::SESSION_ID => $_SESSION[Identifiers::SESSION_ID],
+            Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]
+        );
 
-    $client = RabbitClient::getConnection();
-    $response = $client->send_request($request);
+        $response = RabbitClient::getConnection()->send_request($request);
 
-    if (!$response) {
-        session_destroy();
-        session_regenerate_id();
-        echo "Expired Session";
-        exit();
+        if (!$response) {
+            header('Location: logout.php');
+            exit();
+        }
+
+        $_SESSION[Identifiers::LAST_SESSION_CHECK] = time();
     }
 }
 

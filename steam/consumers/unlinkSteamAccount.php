@@ -1,12 +1,13 @@
 <?php
 require_once('../../rabbitMQ/RabbitClient.php');
+require_once('../../identifiers.php');
 session_start();
 
-if (isset($_SESSION['username']) && isset($_SESSION['userID'])) {
-    unset($_SESSION['steamid']);
+if (isset($_SESSION[Identifiers::USER_ID])) {
+    unset($_SESSION[IDENTIFIERS::STEAM_ID]);
     $request = array();
-    $request['type'] = 'unlink';
-    $request['userID'] = $_SESSION['userID'];
+    $request['type'] = RequestType::UNLINK;
+    $request[Identifiers::USER_ID] = $_SESSION[Identifiers::USER_ID];
     RabbitClient::getConnection()->send_request($request);
     header('Location: ../../profile.php');
 } else {

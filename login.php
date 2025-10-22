@@ -5,6 +5,7 @@ $successMessage = '';
 
 if (isset($_POST['username']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
+    require_once('identifiers.php');
 
     $username = $_POST["username"];
     $password = $_POST["password"];
@@ -13,20 +14,19 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         $errorMessage = 'Invalid username or password';
     } else {
         $request = array();
-        $request['type'] = 'login';
-        $request['username'] = $username;
-        $request['password'] = $password;
+        $request['type'] = RequestType::LOGIN;
+        $request[Identifiers::USERNAME] = $username;
+        $request[Identifiers::PASSWORD] = $password;
+        $response = RabbitClient::getConnection()->send_request($request);
 
-        $client = RabbitClient::getConnection();
-        $response = $client->send_request($request);
-
-        if (is_array($response) && isset($response['userID']) && isset($response['sessionID']) && isset($response['username'])) {
+        if (is_array($response) && isset($response[Identifiers::USER_ID]) && isset($response[Identifiers::SESSION_ID])) {
             session_regenerate_id();
 
-            $_SESSION['userID'] = $response['userID'];
-            $_SESSION['username'] = $response['username'];
-            $_SESSION['sessionID'] = $response['sessionID'];
-            $_SESSION['steamid'] = $response['steamID'];
+            $_SESSION[Identifiers::USER_ID] = $response[Identifiers::USER_ID];
+            $_SESSION[Identifiers::SESSION_ID] = $response[Identifiers::SESSION_ID];
+            $_SESSION[Identifiers::USERNAME] = $response[Identifiers::USERNAME];
+            $_SESSION[Identifiers::STEAM_ID] = $response[Identifiers::STEAM_ID];
+            $_SESSION[Identifiers::LAST_SESSION_CHECK] = time();
 
             header('Location: profile.php');
             exit();
@@ -45,17 +45,13 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-    <!-- I tried downloading font-awesome manually, couldn't get it to work??? -->
+    <link rel="stylesheet" href="css/fontawesome/css/all.min.css"/>
 </head>
 
 <body>
 <main class="container" style="padding-left: 1rem; padding-right: 1rem">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav>
-            <ul>
-                <li><strong>IT-490</strong></li>
-            </ul>
+        <nav style="justify-content: center">
             <ul>
                 <li>
                     <a href="index.php"> <i class="fa-solid fa-house">

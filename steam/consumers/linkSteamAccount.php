@@ -1,20 +1,17 @@
 <?php
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
 require_once('../../rabbitMQ/RabbitClient.php');
+require_once('../../identifiers.php');
 session_start();
 
-if (isset($_SESSION['username']) && isset($_SESSION['userID']) && isset($_SESSION['steamid'])) {
+if (isset($_SESSION[Identifiers::USER_ID]) && isset($_SESSION[Identifiers::STEAM_ID])) {
     $request = array();
-    $request['type'] = 'link';
-    $request['userID'] = $_SESSION['userID'];
-    $request['steamID'] = $_SESSION['steamid'];
+    $request['type'] = RequestType::LINK;
+    $request[Identifiers::USER_ID] = $_SESSION[Identifiers::USER_ID];
+    $request[Identifiers::STEAM_ID] = $_SESSION[Identifiers::STEAM_ID];
     if (RabbitClient::getConnection()->send_request($request)) {
         header('Location: ../../profile.php');
     } else {
-        unset($_SESSION['steamid']);
+        unset($_SESSION[IDentifiers::STEAM_ID]);
         header('Location: ../../index.php');
     }
 } else {

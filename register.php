@@ -4,6 +4,7 @@ $successMessage = '';
 
 if (isset($_POST['username']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
+    require_once('identifiers.php');
 
     $username = $_POST["username"];
     $password = $_POST["password"];
@@ -12,9 +13,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         $errorMessage = 'Invalid username or password';
     } else {
         $request = array();
-        $request['type'] = 'register';
-        $request['username'] = $username;
-        $request['password'] = password_hash($password, PASSWORD_BCRYPT);
+        $request['type'] = RequestType::REGISTER;
+        $request[Identifiers::USERNAME] = $username;
+        $request[Identifiers::PASSWORD] = password_hash($password, PASSWORD_BCRYPT);
 
         $client = RabbitClient::getConnection();
         $response = $client->send_request($request);
@@ -36,16 +37,13 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+    <link rel="stylesheet" href="css/fontawesome/css/all.min.css"/>
 </head>
 
 <body>
 <main class="container" style="padding-left: 1rem; padding-right: 1rem">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav>
-            <ul>
-                <li><strong>IT-490</strong></li>
-            </ul>
+        <nav style="justify-content: center">
             <ul>
                 <li>
                     <a href="index.php"> <i class="fa-solid fa-house">

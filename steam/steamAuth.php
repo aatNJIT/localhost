@@ -1,12 +1,12 @@
 <?php
 ob_start();
 session_start();
-function loginButton($buttonstyle = "square")
+require_once('identifiers.php');
+function loginButton($buttonstyle = "square"): void
 {
     $button['rectangle'] = "01";
     $button['square'] = "02";
-    $button = "<a href='?login'> <img src='https://steamcommunity-a.akamaihd.net/public/images/signinthroughsteam/sits_" . $button[$buttonstyle] . ".png'></a>";
-    echo $button;
+    echo "<a href='?login'> <img src='https://steamcommunity-a.akamaihd.net/public/images/signinthroughsteam/sits_" . $button[$buttonstyle] . ".png'></a>";
 }
 
 if (isset($_GET['login'])) {
@@ -25,8 +25,7 @@ if (isset($_GET['login'])) {
                 $id = $openid->identity;
                 $ptn = "/^https?:\/\/steamcommunity\.com\/openid\/id\/(7[0-9]{15,25}+)$/";
                 preg_match($ptn, $id, $matches);
-
-                $_SESSION['steamid'] = $matches[1];
+                $_SESSION[Identifiers::STEAM_ID] = $matches[1];
                 if (!headers_sent()) {
                     header('Location: ' . $steamAuth['loginpage']);
                 } else {
@@ -54,12 +53,5 @@ if (isset($_GET['logout'])) {
     session_unset();
     session_destroy();
     header('Location: ' . $steamAuth['logoutpage']);
-    exit();
-}
-
-if (isset($_GET['update'])) {
-    unset($_SESSION['steam_uptodate']);
-    require 'suppliers/userProfile.php';
-    header('Location: ' . $_SERVER['PHP_SELF']);
     exit();
 }

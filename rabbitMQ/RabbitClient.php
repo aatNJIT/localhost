@@ -5,14 +5,13 @@ require_once('rabbitMQLib.inc');
 
 class RabbitClient
 {
-    public static $connection = null;
+    private static array $connections = [];
 
-    static function getConnection()
+    static function getConnection(string $server = "Default"): rabbitMQClient
     {
-        if (self::$connection == null) {
-            self::$connection = new rabbitMQClient("testRabbitMQ.ini", "testServer");
+        if (!isset(self::$connections[$server])) {
+            self::$connections[$server] = new rabbitMQClient("rabbitMQ.ini", $server);
         }
-        return self::$connection;
+        return self::$connections[$server];
     }
-
 }
