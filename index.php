@@ -43,6 +43,11 @@ require_once('identifiers.php');
                                 <i class="fa-solid fa-lightbulb"></i> Recommendations
                             </a>
                         </li>
+                        <li>
+                            <a href="followUser.php">
+                                <i class="fa-solid fa-user-group"></i> Friends
+                            </a>
+                        </li>
                     <?php endif; ?>
 
                     <li>
