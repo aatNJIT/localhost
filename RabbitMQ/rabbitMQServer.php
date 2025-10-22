@@ -242,6 +242,20 @@ function getUserCatalogs($userID): array
     return $catalogs;
 }
 
+function getCatalog($catalogID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return [];
+    }
+
+    $catalogSelectStmt = $connection->prepare("SELECT CatalogID, Title FROM Catalogs WHERE CatalogID = ?");
+    $catalogSelectStmt->bind_param("i", $catalogID);
+    $catalogSelectStmt->execute();
+    return $catalogSelectStmt->get_result()->fetch_assoc();
+}
+
 function getAllUsers(): array
 {
     $connection = MySQL::getConnection();
@@ -254,9 +268,94 @@ function getAllUsers(): array
     return $selectAllUsersStatement->fetch_all(MYSQLI_ASSOC);
 }
 
-function followUser($userID, $followID): bool
+function followUser($followerID, $followedID): bool
 {
-    return false;
+    if ($followerID === $followedID) {
+        return false;
+    }
+
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return false;
+    }
+
+    $existsStatement = $connection->prepare("SELECT FollowerID, FollowedID FROM Followers WHERE FollowerID = ? AND FollowedID = ?");
+    $existsStatement->bind_param("ii", $followerID, $followedID);
+    $existsStatement->execute();
+
+    if ($existsStatement->get_result()->num_rows > 0) {
+        return false;
+    }
+
+    $insertFollowerStatement = $connection->prepare("INSERT INTO Followers (FollowerID, FollowedID) VALUEs (?, ?)");
+    $insertFollowerStatement->bind_param("ii", $followerID, $followedID);
+    $insertFollowerStatement->execute();
+    return $insertFollowerStatement->affected_rows > 0;
+}
+
+function unfollowUser($followerID, $followedID): bool
+{
+    if ($followerID === $followedID) {
+        return false;
+    }
+
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return false;
+    }
+
+    $deleteFollowerStatement = $connection->prepare("DELETE FROM Followers WHERE FollowerID = ? AND FollowedID = ?");
+    $deleteFollowerStatement->bind_param("ii", $followerID, $followedID);
+    $deleteFollowerStatement->execute();
+    return $deleteFollowerStatement->affected_rows > 0;
+}
+
+function getUserFollowers($userID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return [];
+    }
+
+    $selectFollowersStatement = $connection->prepare("SELECT FollowerID FROM Followers WHERE FollowedID = ?");
+    $selectFollowersStatement->bind_param("i", $userID);
+    $selectFollowersStatement->execute();
+
+    $result = $selectFollowersStatement->get_result();
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+function getUserFollowing($userID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return [];
+    }
+
+    $selectFollowingStatement = $connection->prepare("SELECT FollowedID, Created FROM Followers WHERE FollowerID = ?");
+    $selectFollowingStatement->bind_param("i", $userID);
+    $selectFollowingStatement->execute();
+
+    $result = $selectFollowingStatement->get_result();
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+function addCatalogComment($catalogID, $userID, $comment): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return false;
+    }
+
+    $insertCommentStatement = $connection->prepare("INSERT INTO Catalog_Comments (CatalogID, UserID, Text) VALUEs (?, ?, ?)");
+    $insertCommentStatement->bind_param("iis", $catalogID, $userID, $comment);
+    $insertCommentStatement->execute();
+    return $insertCommentStatement->affected_rows > 0;
 }
 
 function requestProcessor($request)
@@ -278,8 +377,13 @@ function requestProcessor($request)
         'unlink' => unlinkSteamAccount($request['userid']),
         'savecatalog' => saveCatalog($request['userid'], $request['title'], $request['ratings'], $request['names']),
         'getusercatalogs' => getUserCatalogs($request['userid']),
+        'getcatalog' => getCatalog($request['catalogid']),
         'getallusers' => getAllUsers(),
+        'getuserfollowers' => getuserFollowers($request['userid']),
+        'getuserfollowing' => getUserFollowing($request['userid']),
+        'unfollowuser' => unfollowUser($request['userid'], $request['followid']),
         'followuser' => followUser($request['userid'], $request['followid']),
+        'addcatalogcomment' => addCatalogComment($request['catalogid'], $request['userid'], $request['comment']),
         default => false,
     };
 
