@@ -1,0 +1,179 @@
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--pico-form-element-border-color);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.profile-avatar {
+    position: relative;
+}
+
+.profile-avatar img {
+    width: 184px;
+    height: 184px;
+    border-radius: 4px;
+    border: 3px solid var(--pico-primary);
+}
+
+.status-indicator {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid var(--pico-card-background-color);
+}
+
+.status-online { 
+    background: #57cbde; 
+}
+
+.status-offline { 
+    background: #898989; 
+}
+
+.status-away { 
+    background: #c9b171; 
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-name {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.profile-realname {
+    color: var(--pico-muted-color);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.profile-level {
+    display: inline-block;
+    background: linear-gradient(135deg, #667db6 0%, #0082c8 50%, #0082c8 51%, #667db6 100%);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card {
+    padding: 1rem;
+    border: 1px solid var(--pico-form-element-border-color);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--pico-primary);
+}
+
+.stat-label {
+    color: var(--pico-muted-color);
+    font-size: 0.9rem;
+}
+
+.games-showcase {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.game-mini {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.game-mini:hover {
+    transform: scale(1.05);
+}
+
+.game-mini img {
+    width: 100%;
+    display: block;
+}
+
+.game-playtime {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.8);
+    padding: 0.3rem;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.badges-container {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.badge-item {
+    text-align: center;
+    padding: 0.5rem;
+    border: 1px solid var(--pico-form-element-border-color);
+    border-radius: 4px;
+    width: 100px;
+}
+
+.badge-item img {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 0.3rem;
+}
+
+.friends-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.5rem;
+}
+
+.friend-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid var(--pico-form-element-border-color);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.friend-card:hover {
+    background-color: var(--pico-background-color);
+}
+
+.friend-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+}
+
+.friend-name {
+    font-size: 0.9rem;
+    flex: 1;
+}
