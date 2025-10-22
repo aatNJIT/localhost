@@ -42,6 +42,11 @@ require_once('session.php');
                             <i class="fa-solid fa-plus"></i> Create Catalog
                         </a>
                     </li>
+                    <li>
+                        <a href="recommendations.php">
+                            <i class="fa-solid fa-lightbulb"></i> Recommendations
+                        </a>
+                    </li>
                 <?php endif; ?>
 
                 <li>
