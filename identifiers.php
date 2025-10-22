@@ -13,8 +13,12 @@ enum RequestType: string
     case SAVE_CATALOG = 'savecatalog';
     case GET_USER_CATALOGS = 'getusercatalogs';
     case GET_ALL_CATALOGS = 'getallcatalogs';
+    case GET_CATALOG = 'getcatalog';
     case GET_ALL_USERS = 'getallusers';
     case FOLLOW_USER = 'followuser';
+    case GET_USER_FOLLOWERS = 'getuserfollowers';
+    case UNFOLLOW_USER = 'unfollowuser';
+    case GET_USER_FOLLOWING = 'getuserfollowing';
 }
 
 class Identifiers
@@ -22,6 +26,8 @@ class Identifiers
     const string USERNAME = 'username';
     const string PASSWORD = 'password';
     const string USER_ID = 'userid';
+    const string FOLLOW_ID = 'followid';
+    const string CATALOG_ID = 'catalogid';
     const string SESSION_ID = 'sessionid';
     const string STEAM_ID = 'steamid';
     const string STEAM_PROFILE = "profile";

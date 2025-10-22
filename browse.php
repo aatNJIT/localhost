@@ -22,7 +22,7 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
 </head>
 
 <body>
-<main class="container" style="padding-left: 1rem; padding-right: 1rem">
+<main style="padding-left: 10vh; padding-right: 10vh;">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>
@@ -44,6 +44,11 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
                     <li>
                         <a href="createCatalog.php">
                             <i class="fa-solid fa-plus"></i> Create Catalog
+                        </a>
+                    </li>
+                    <li>
+                        <a href="recommendations.php">
+                            <i class="fa-solid fa-lightbulb"></i> Recommendations
                         </a>
                     </li>
                 <?php endif; ?>

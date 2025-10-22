@@ -5,7 +5,6 @@ require_once('identifiers.php');
 require_once('rabbitMQ/RabbitClient.php');
 require_once('steam/SteamUtils.php');
 
-
 if (!isset($_SESSION[Identifiers::STEAM_ID])) {
     header("Location: profile.php");
     exit();
@@ -65,7 +64,8 @@ $recommendedGames = [];
 $processedAppIds = [];
 
 
-function getSimilarGames($appId, $apiKey, &$recommendations, &$processed, $ownedGames) {
+function getSimilarGames($appId, &$recommendations, &$processed): void
+{
     
     $detailsUrl = @file_get_contents("https://store.steampowered.com/api/appdetails?appids=$appId");
     if (!$detailsUrl) return;
@@ -105,7 +105,7 @@ $sourceGames = array_unique($sourceGames, SORT_REGULAR);
 $sourceGames = array_slice($sourceGames, 0, 5); 
 
 foreach ($sourceGames as $game) {
-    getSimilarGames($game['appid'], $steamAuth['apikey'], $recommendedGames, $processedAppIds, $userGames);
+    getSimilarGames($game['appid'], $recommendedGames, $processedAppIds);
 }
 
 // Get all user's owned game IDs for filtering
@@ -146,7 +146,7 @@ if ($featuredData && isset($featuredData['featured_win'])) {
 </head>
 
 <body>
-<main class="container" style="padding-left: 1rem; padding-right: 1rem">
+<main style="padding-left: 10vh; padding-right: 10vh;">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>

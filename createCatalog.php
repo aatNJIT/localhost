@@ -55,6 +55,11 @@ if (isset($_GET['error'])) {
                             <i class="fa-solid fa-gamepad"></i> Browse
                         </a>
                     </li>
+                    <li>
+                        <a href="recommendations.php">
+                            <i class="fa-solid fa-lightbulb"></i> Recommendations
+                        </a>
+                    </li>
                 <?php endif; ?>
 
                 <li>

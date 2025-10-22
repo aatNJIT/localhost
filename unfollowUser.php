@@ -19,12 +19,12 @@ if (!$userIDToFollow || !$username) {
 $followerUserID = $_SESSION[Identifiers::USER_ID];
 
 if ($userIDToFollow == $followerUserID) {
-    header("Location: users.php?error=" . urlencode("Cannot follow yourself"));
+    header("Location: users.php?error=" . urlencode("Cannot unfollow yourself"));
     exit();
 }
 
 $request = array(
-    'type' => RequestType::FOLLOW_USER,
+    'type' => RequestType::UNFOLLOW_USER,
     Identifiers::USER_ID => $followerUserID,
     Identifiers::FOLLOW_ID => $userIDToFollow,
 );
@@ -32,9 +32,9 @@ $request = array(
 $response = RabbitClient::getConnection()->send_request($request);
 
 if ($response) {
-    header('Location: users.php?success=' . urlencode('Followed User: ' . $username));
+    header('Location: users.php?success=' . urlencode('Unfollowed User: ' . $username));
     exit();
 }
 
-header("Location: users.php?error=" . urlencode("Error following user: " . $username));
+header("Location: users.php?error=" . urlencode("Error unfollowing user: " . $username));
 exit();

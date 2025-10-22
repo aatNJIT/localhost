@@ -16,7 +16,7 @@ if (!isset($_GET[Identifiers::USER_ID])) {
 <html lang="en" xmlns="http://www.w3.org/1999/html" data-theme="dark">
 
 <head>
-    <title>IT-490 - My Catalogs</title>
+    <title>IT-490 - Catalog</title>
     <meta charset="utf-8">
     <link rel="stylesheet" href="css/pico.min.css">
     <link rel="stylesheet" href="css/custom.css"/>
@@ -78,10 +78,8 @@ if (!isset($_GET[Identifiers::USER_ID])) {
             <div style="max-height: 80vh; overflow-y: auto; padding-right: 1rem;">
 
                 <?php foreach ($response as $catalog): ?>
-                    <div style="margin-bottom: 0.5rem; font-weight: bold; font-size: 1.2rem;">
-                        <a href="viewCatalog.php?id=<?= $catalog['CatalogID'] ?>" style="cursor: pointer;">
-                            <strong><?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)</strong>
-                        </a>
+                    <div style="margin-bottom: 0.5rem; cursor: pointer; font-weight: bold; font-size: 1.2rem;">
+                        <?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)
                     </div>
 
                     <div id="catalog-<?= $catalog['CatalogID'] ?>" class="hidden"

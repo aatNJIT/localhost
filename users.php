@@ -12,6 +12,15 @@ if (isset($_GET['error'])) {
 } else if (isset($_GET['success'])) {
     $successMessage = $_GET['success'];
 }
+
+$followingUserIDs = [];
+if (isset($_SESSION[Identifiers::USER_ID])) {
+    $followRequest = ['type' => RequestType::GET_USER_FOLLOWING, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
+    $followingResponse = RabbitClient::getConnection()->send_request($followRequest);
+    if (is_array($followingResponse)) {
+        $followingUserIDs = $followingResponse;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -26,7 +35,7 @@ if (isset($_GET['error'])) {
 </head>
 
 <body>
-<main class="container" style="padding-left: 1rem; padding-right: 1rem">
+<main style="padding-left: 10vh; padding-right: 10vh;">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>
@@ -52,6 +61,11 @@ if (isset($_GET['error'])) {
                     <li>
                         <a href="createCatalog.php">
                             <i class="fa-solid fa-plus"></i> Create Catalog
+                        </a>
+                    </li>
+                    <li>
+                        <a href="recommendations.php">
+                            <i class="fa-solid fa-lightbulb"></i> Recommendations
                         </a>
                     </li>
                 <?php endif; ?>
@@ -98,6 +112,19 @@ if (isset($_GET['error'])) {
                     <?php
                     $username = htmlspecialchars($user['Username']);
                     $userID = htmlspecialchars($user['ID']);
+                    $isFollowing = !empty($followingUserIDs) && in_array($userID, $followingUserIDs[0]);
+
+                    $followingDate = null;
+                    if (!empty($followingUserIDs)) {
+                        foreach ($followingUserIDs as $follower) {
+                            if ($follower['FollowedID'] == $userID) {
+                                $followingDate = $follower['Created'] ?? null;
+                                break;
+                            }
+                        }
+                    }
+
+                    $isCurrentUser = isset($_SESSION[Identifiers::USER_ID]) && $userID == $_SESSION[Identifiers::USER_ID];
                     ?>
 
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px; transition: background-color .1s;"
@@ -105,7 +132,18 @@ if (isset($_GET['error'])) {
                          onmouseout="this.style.backgroundColor='transparent'">
 
                         <div style="text-align: left;">
-                            <strong style="font-size: 1.1rem;">Username: <?= $username ?></strong><br>
+                            <strong style="font-size: 1.1rem;">Username: <?= $username ?></strong>
+                            <?php if ($isCurrentUser): ?>
+                                <span style="color: var(--pico-primary); margin-left: 0.5rem;">(You)</span>
+                            <?php endif; ?>
+                            <?php if ($isFollowing): ?>
+                                <span style="color: var(--pico-secondary); margin-left: 0.5rem;"><i
+                                            class="fa-solid fa-check"></i> Following</span>
+                                <span style="color: var(--pico-secondary); margin-left: 0.5rem;">
+                                    Followed: <?= $followingDate ? date('Y-m-d', strtotime($followingDate)) : '' ?>
+                                </span>
+                            <?php endif; ?>
+                            <br>
                             <small style="color: var(--pico-muted-color);"><?= $user['SteamID'] ?? "N/A" ?></small>
                         </div>
 
@@ -115,12 +153,23 @@ if (isset($_GET['error'])) {
                                 <button type="submit" style="margin-top: 1rem">View Catalogs</button>
                             </form>
 
-                            <?php if (isset($_SESSION[Identifiers::USER_ID])): ?>
-                                <form method="post" action="followUser.php">
-                                    <input type="hidden" name="userid" value="<?= $userID ?>">
-                                    <input type="hidden" name="username" value="<?= $username ?>">
-                                    <button type="submit" style="margin-top: 1rem">Follow</button>
-                                </form>
+                            <?php if (isset($_SESSION[Identifiers::USER_ID]) && !$isCurrentUser): ?>
+                                <?php if ($isFollowing): ?>
+                                    <form method="post" action="unfollowUser.php">
+                                        <input type="hidden" name="userid" value="<?= $userID ?>">
+                                        <input type="hidden" name="username" value="<?= $username ?>">
+                                        <button type="submit"
+                                                style="margin-top: 1rem; background-color: var(--pico-mark-background-color);">
+                                            Unfollow
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <form method="post" action="followUser.php">
+                                        <input type="hidden" name="userid" value="<?= $userID ?>">
+                                        <input type="hidden" name="username" value="<?= $username ?>">
+                                        <button type="submit" style="margin-top: 1rem">Follow</button>
+                                    </form>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 
