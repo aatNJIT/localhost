@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 22, 2025 at 02:46 PM
+-- Generation Time: Oct 23, 2025 at 03:18 AM
 -- Server version: 8.0.43-0ubuntu0.24.04.2
 -- PHP Version: 8.3.6
 
@@ -46,8 +46,7 @@ CREATE TABLE `Catalog_Comments` (
   `CatalogID` int NOT NULL,
   `UserID` int NOT NULL,
   `Text` text NOT NULL,
-  `Created` timestamp NOT NULL,
-  `Updated` timestamp NOT NULL
+  `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -57,13 +56,11 @@ CREATE TABLE `Catalog_Comments` (
 --
 
 CREATE TABLE `Catalog_Games` (
-  `GameID` int NOT NULL,
   `CatalogID` int NOT NULL,
-  `GameName` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `AppID` int NOT NULL,
-  `Rating` tinyint UNSIGNED NOT NULL,
+  `Rating` int NOT NULL,
   `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -75,6 +72,18 @@ CREATE TABLE `Followers` (
   `FollowerID` int NOT NULL,
   `FollowedID` int NOT NULL,
   `Created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `Games`
+--
+
+CREATE TABLE `Games` (
+  `AppID` int NOT NULL,
+  `Name` varchar(255) NOT NULL,
+  `Tags` json DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -103,9 +112,17 @@ CREATE TABLE `Users` (
   `Password` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
+
 --
--- Indexes for dumped tables
+-- Table structure for table `User_Games`
 --
+
+CREATE TABLE `User_Games` (
+  `AppID` int NOT NULL,
+  `UserID` int NOT NULL,
+  `Playtime` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Indexes for table `Catalogs`
@@ -126,8 +143,8 @@ ALTER TABLE `Catalog_Comments`
 -- Indexes for table `Catalog_Games`
 --
 ALTER TABLE `Catalog_Games`
-  ADD PRIMARY KEY (`GameID`),
-  ADD KEY `CatalogID` (`CatalogID`);
+  ADD PRIMARY KEY (`CatalogID`,`AppID`),
+  ADD KEY `CatalogAppID` (`AppID`);
 
 --
 -- Indexes for table `Followers`
@@ -135,6 +152,12 @@ ALTER TABLE `Catalog_Games`
 ALTER TABLE `Followers`
   ADD PRIMARY KEY (`FollowerID`),
   ADD KEY `FollowedID` (`FollowedID`);
+
+--
+-- Indexes for table `Games`
+--
+ALTER TABLE `Games`
+  ADD PRIMARY KEY (`AppID`);
 
 --
 -- Indexes for table `Sessions`
@@ -151,6 +174,13 @@ ALTER TABLE `Users`
   ADD UNIQUE KEY `SteamID` (`SteamID`);
 
 --
+-- Indexes for table `User_Games`
+--
+ALTER TABLE `User_Games`
+  ADD PRIMARY KEY (`AppID`,`UserID`),
+  ADD KEY `UserGamesUserID` (`UserID`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -165,12 +195,6 @@ ALTER TABLE `Catalogs`
 --
 ALTER TABLE `Catalog_Comments`
   MODIFY `CommentID` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `Catalog_Games`
---
-ALTER TABLE `Catalog_Games`
-  MODIFY `GameID` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `Followers`
@@ -211,6 +235,7 @@ ALTER TABLE `Catalog_Comments`
 -- Constraints for table `Catalog_Games`
 --
 ALTER TABLE `Catalog_Games`
+  ADD CONSTRAINT `CatalogAppID` FOREIGN KEY (`AppID`) REFERENCES `Games` (`AppID`) ON DELETE CASCADE ON UPDATE RESTRICT,
   ADD CONSTRAINT `CatalogID` FOREIGN KEY (`CatalogID`) REFERENCES `Catalogs` (`CatalogID`) ON DELETE CASCADE;
 
 --
@@ -224,7 +249,14 @@ ALTER TABLE `Followers`
 -- Constraints for table `Sessions`
 --
 ALTER TABLE `Sessions`
-  ADD CONSTRAINT `Sessions_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `SessionUserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `User_Games`
+--
+ALTER TABLE `User_Games`
+  ADD CONSTRAINT `UserGamesAppID` FOREIGN KEY (`AppID`) REFERENCES `Games` (`AppID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `UserGamesUserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
