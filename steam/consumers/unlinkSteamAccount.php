@@ -4,7 +4,9 @@ require_once('../../identifiers.php');
 session_start();
 
 if (isset($_SESSION[Identifiers::USER_ID])) {
-    unset($_SESSION[IDENTIFIERS::STEAM_ID]);
+    unset($_SESSION[Identifiers::LAST_GAME_SESSION_CHECK]);
+    unset($_SESSION[Identifiers::STEAM_ID]);
+    unset($_SESSION[Identifiers::STEAM_PROFILE]);
     $request = array();
     $request['type'] = RequestType::UNLINK;
     $request[Identifiers::USER_ID] = $_SESSION[Identifiers::USER_ID];

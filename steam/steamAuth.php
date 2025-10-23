@@ -1,7 +1,14 @@
 <?php
+
+/**
+ * @link        https://github.com/SmItH197/SteamAuthentication
+ * @author      SmItH197
+ **/
+
 ob_start();
 session_start();
 require_once('identifiers.php');
+
 function loginButton($buttonstyle = "square"): void
 {
     $button['rectangle'] = "01";

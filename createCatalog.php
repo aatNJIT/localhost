@@ -5,7 +5,7 @@ require_once('session.php');
 $errorMessage = '';
 $successMessage = '';
 
-if (!isset($_SESSION[Identifiers::STEAM_ID])) {
+if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::STEAM_PROFILE])) {
     header("Location: profile.php");
     exit();
 }
@@ -31,9 +31,9 @@ if (isset($_GET['error'])) {
 </head>
 
 <body>
-<main style="margin-left: 20vh; margin-right: 20vh">
-    <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav style="justify-content: center">
+<main class="main">
+    <article class="bordered-article">
+        <nav class="main-navigation">
             <ul>
                 <li>
                     <a href="index.php">
@@ -76,37 +76,28 @@ if (isset($_GET['error'])) {
         </nav>
     </article>
 
-    <?php
-    if ($successMessage) {
-        echo '<article style="background-color: lightgreen; margin-top: 1rem; margin-bottom: 1rem; color: darkgreen; border: 2px green solid">';
-        echo $successMessage;
-        echo '</article>';
-    }
-
-    if ($errorMessage) {
-        echo '<article style="background-color: indianred; margin-top: 1rem; margin-bottom: 1rem; color: darkred; border: 2px darkred solid">';
-        echo $errorMessage;
-        echo '</article>';
-    }
-    ?>
+    <?php if ($successMessage): ?>
+        <article class="success">
+            <?= $successMessage ?>
+        </article>
+    <?php elseif ($errorMessage): ?>
+        <article class="error">'
+            <?= $errorMessage ?>
+        </article>'
+    <?php endif; ?>
 
     <div style="display: flex; gap: 10px; align-items: stretch; height: 100vh;">
         <article
                 style="flex: 1; max-width: 80%; border: 1px var(--pico-form-element-border-color) solid; padding: 1rem; display: flex; flex-direction: column;">
             <?php
-            $sessionGames = $_SESSION[Identifiers::STEAM_GAMES] ?? null;
-            $update = $sessionGames === null || (isset($sessionGames['gameupdatetime']) && time() - $sessionGames['gameupdatetime'] > 300);
+            $request = ['type' => RequestType::GET_USER_GAMES, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
+            $games = RabbitClient::getConnection()->send_request($request);
 
-            if ($update) {
-                $request = ['type' => RequestType::GAMES, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
-                $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
-                if (is_array($response) && !empty($response)) {
-                    $_SESSION[Identifiers::STEAM_GAMES] = $response;
-                }
+            if (!is_array($games)) {
+                $games = [];
             }
 
-            $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE] ?? [];
-            $games = $_SESSION[Identifiers::STEAM_GAMES][Identifiers::STEAM_GAMES] ?? [];
+            $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
             ?>
 
             <div style="text-align: center; flex-shrink: 0;">
@@ -116,9 +107,7 @@ if (isset($_GET['error'])) {
                 >
 
                 <p>
-                    <strong style="font-size: 1.1rem;"><?= $profile["personaname"] ?? "N/A" ?></strong>
-                    <small style="color: var(--pico-muted-color);">(<?= round((time() - $_SESSION[Identifiers::STEAM_GAMES]['gameupdatetime']) / 60, 1) ?>
-                        mins)</small><br>
+                    <strong class="steam-username"><?= $profile["personaname"] ?? "N/A" ?></strong><br>
                     <small style="color: var(--pico-muted-color);">Steam ID: <?= $profile["steamid"] ?? "N/A" ?></small>
                 </p>
             </div>
@@ -126,7 +115,7 @@ if (isset($_GET['error'])) {
             <?php if (!empty($games)): ?>
                 <?php
                 usort($games, function ($a, $b) {
-                    return $b['playtime_forever'] - $a['playtime_forever'];
+                    return $b['Playtime'] - $a['Playtime'];
                 });
                 ?>
 
@@ -138,15 +127,13 @@ if (isset($_GET['error'])) {
                 <div style="flex: 1; overflow-y: auto; padding-right: 1rem; min-height: 0;">
                     <?php foreach ($games as $game): ?>
                         <?php
-                        $appid = $game['appid'];
-                        $name = $game['name'];
+                        $appid = $game['AppID'];
+                        $name = $game['Name'];
+                        $playtime = $game['Playtime'];
+                        $tags = json_decode($game['Tags'], true);
                         ?>
 
-                        <div class="game-div" appid="<?= $appid ?>"
-                             style="display: flex; padding: 1rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px; cursor: pointer; transition: background-color .1s;"
-                             onmouseover="this.style.backgroundColor='var(--pico-background-color)'"
-                             onmouseout="this.style.backgroundColor='transparent'"
-                             onclick="selectGame(<?= $appid ?>, <?= htmlspecialchars(json_encode($name)) ?>)">
+                        <div class="game-div" appid="<?= $appid ?>" onclick="selectGame(<?= $appid ?>, <?= htmlspecialchars(json_encode($name)) ?>)">
 
                             <img src="<?= SteamUtils::getAppImage($appid) ?>"
                                  alt="<?= $name ?>"
@@ -155,14 +142,25 @@ if (isset($_GET['error'])) {
                             <div style="text-align: left;">
                                 <strong style="font-size: 1.1rem;"><?= $name ?></strong><br>
                                 <small style="color: var(--pico-muted-color);">
-                                    <?= SteamUtils::getGameTime($game) ?> hours played
+                                    <?= round($playtime / 60, 1) ?> hours played
                                 </small>
                             </div>
                         </div>
+
+                        <?php if (!empty($tags)): ?>
+                            <div id="tags-<?= $appid ?>" class="game-tags" style="padding-bottom: 0.5rem; gap: 0.2rem">
+                                <?php foreach ($tags as $tag): ?>
+                                    <span class="game-tags-background">
+                                            <?= htmlspecialchars($tag) ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+
                     <?php endforeach; ?>
                 </div>
             <?php else: ?>
-                <p style="text-align: left;">No games found or profile is private.</p>
+                <p style="text-align: left;">No games found.</p>
             <?php endif; ?>
         </article>
 
@@ -208,16 +206,14 @@ if (isset($_GET['error'])) {
     const selectedGames = new Map();
 
     function selectGame(appId, gameName) {
-        if (selectedGames.has(appId)) {
-            return;
-        } else {
-            selectedGames.set(appId, gameName);
-        }
+        if (selectedGames.has(appId)) return;
+        selectedGames.set(appId, gameName);
 
         const libraryGameDiv = document.querySelector(`.game-div[appid="${appId}"]`);
-        if (libraryGameDiv) {
-            libraryGameDiv.style.display = 'none';
-        }
+        const tagContainer = document.getElementById(`tags-${appId}`);
+
+        if (libraryGameDiv) libraryGameDiv.style.display = 'none';
+        if (tagContainer) tagContainer.style.display = 'none';
 
         const gamesList = document.getElementById('gameslist');
         const gameDiv = document.createElement('div');
@@ -225,7 +221,7 @@ if (isset($_GET['error'])) {
         gameDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; padding-right: 0.5rem; margin-bottom: 0.25rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px;';
 
         const paragraphGameName = document.createElement('p');
-        paragraphGameName.style.cssText = "padding-left: 0.5rem;"
+        paragraphGameName.style.cssText = "padding-left: 0.5rem;";
         paragraphGameName.textContent = gameName;
 
         const removeButton = document.createElement('button');
@@ -234,15 +230,14 @@ if (isset($_GET['error'])) {
 
         const icon = document.createElement('i');
         icon.classList.add('fas', 'fa-trash');
-
         removeButton.appendChild(icon);
+
         removeButton.onclick = function () {
             selectedGames.delete(appId);
             gameDiv.remove();
 
-            if (libraryGameDiv) {
-                libraryGameDiv.style.display = 'flex';
-            }
+            if (libraryGameDiv) libraryGameDiv.style.display = 'flex';
+            if (tagContainer) tagContainer.style.display = 'block';
 
             computeForm();
         };
@@ -259,9 +254,6 @@ if (isset($_GET['error'])) {
         inputs.innerHTML = '';
 
         selectedGames.forEach((name, appId) => {
-            if (name.length < 1 || name.length > 255) {
-                return;
-            }
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'games[]';

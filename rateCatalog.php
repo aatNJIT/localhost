@@ -31,7 +31,7 @@ require_once('identifiers.php');
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
+<main class="main">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>
@@ -79,30 +79,38 @@ require_once('identifiers.php');
     <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
 
         <?php
-        $games = array_filter($_SESSION[Identifiers::STEAM_GAMES][Identifiers::STEAM_GAMES] ?? [], function($game) {
-            return in_array($game['appid'], $_POST['games']);
+        $request = ['type' => RequestType::GET_USER_GAMES, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
+        $userGames = RabbitClient::getConnection()->send_request($request);
+
+        if (!is_array($userGames)) {
+            $userGames = [];
+        }
+
+        $filteredGames = array_filter($userGames, function($game) use ($games) {
+            return in_array($game['AppID'], $games);
         });
 
-        usort($games, function ($a, $b) {
-            return $b['playtime_forever'] - $a['playtime_forever'];
+        usort($filteredGames, function ($a, $b) {
+            return $b['Playtime'] - $a['Playtime'];
         });
         ?>
 
         <h3>Rate Your Games</h3>
         <p><strong><?= $title ?></strong></p>
 
-        <?php if (!empty($games)): ?>
+        <?php if (!empty($filteredGames)): ?>
             <form method="POST" action="saveCatalog.php">
                 <input type="hidden" name="title" value="<?= htmlspecialchars($title) ?>">
 
                 <div style="max-height: 70vh; overflow-y: auto; padding-right: 1rem;">
-                    <?php foreach ($games as $game): ?>
+                    <?php foreach ($filteredGames as $game): ?>
                         <?php
-                        $appid = $game['appid'];
-                        $name = $game['name'];
+                        $appid = $game['AppID'];
+                        $name = $game['Name'];
+                        $playtime = $game['Playtime'];
+                        $tags = json_decode($game['Tags'], true);
                         ?>
 
-                        <input type="hidden" name="gameNames[<?= $appid ?>]" value="<?= htmlspecialchars($name) ?>">
                         <div class="game-rating-div" style="display: flex; align-items: center; padding: 1rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px;">
 
                             <img src="<?= SteamUtils::getAppImage($appid) ?>"
@@ -116,21 +124,31 @@ require_once('identifiers.php');
                                 <br>
 
                                 <small style="color: var(--pico-muted-color);">
-                                    <?= SteamUtils::getGameTime($game) ?> hours played
+                                    <?= round($playtime / 60, 1) ?> hours played
                                 </small>
+
+                                <?php if (!empty($tags)): ?>
+                                    <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                                        <?php foreach ($tags as $tag): ?>
+                                            <span style="background-color: var(--pico-muted-border-color); color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem;">
+                                                    <?= htmlspecialchars($tag) ?>
+                                </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
 
                                 <div style="margin-top: 1rem;">
                                     <label for="rating-<?= $appid ?>" style="display: flex; align-items: center; gap: 1rem;">
                                         <span style="min-width: 80px; padding-bottom: 16px">Rating: <strong><span id="value-<?= $appid ?>">5</span></strong></span>
                                         <input
-                                            type="range"
-                                            id="rating-<?= $appid ?>"
-                                            name="ratings[<?= $appid ?>]"
-                                            min="1"
-                                            max="10"
-                                            value="5"
-                                            style="flex: 1;"
-                                            oninput="document.getElementById('value-<?= $appid ?>').textContent = this.value"
+                                                type="range"
+                                                id="rating-<?= $appid ?>"
+                                                name="ratings[<?= $appid ?>]"
+                                                min="1"
+                                                max="10"
+                                                value="5"
+                                                style="flex: 1;"
+                                                oninput="document.getElementById('value-<?= $appid ?>').textContent = this.value"
                                         >
                                     </label>
                                 </div>

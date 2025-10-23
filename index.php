@@ -14,10 +14,10 @@ require_once('identifiers.php');
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
+<main class="main">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav style="justify-content: center">
-            <ul>
+        <nav style="justify-content: center; display: flex">
+            <ul style="flex-flow: row;">
                 <?php if (isset($_SESSION[Identifiers::SESSION_ID]) && isset($_SESSION[Identifiers::USER_ID])): ?>
                     <li>
                         <a href="profile.php"> <i class="fa-solid fa-users"></i> Profile</a>

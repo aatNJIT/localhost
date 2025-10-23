@@ -4,8 +4,12 @@ require_once('identifiers.php');
 require_once('steam/SteamUtils.php');
 require_once('rabbitMQ/RabbitClient.php');
 
-if (!isset($_GET[Identifiers::USER_ID])) {
-    header("Location: index.php");
+if (!isset($_GET[Identifiers::USER_ID]) || !is_numeric($_GET[Identifiers::USER_ID])) {
+    if (isset($_SESSION[Identifiers::USER_ID])) {
+        header("Location: viewUserCatalogs.php?userid=" . $_SESSION[Identifiers::USER_ID]);
+    } else {
+        header("Location: index.php");
+    }
     exit();
 } else {
     $userID = $_GET[Identifiers::USER_ID];
@@ -24,9 +28,9 @@ if (!isset($_GET[Identifiers::USER_ID])) {
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
-    <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav style="justify-content: center">
+<main class="main">
+    <article class="bordered-article">
+        <nav class="main-navigation">
             <ul>
                 <li>
                     <a href="index.php"> <i class="fa-solid fa-house">
@@ -67,56 +71,25 @@ if (!isset($_GET[Identifiers::USER_ID])) {
         </nav>
     </article>
 
-    <article style="margin-top: 1rem; text-align: center; border: 1px solid var(--pico-form-element-border-color); padding: 1rem;">
+    <?php
+    // wasteful, but it'll do for now ( includes games, etc )
+    $request = ['type' => RequestType::GET_USER_CATALOGS, Identifiers::USER_ID => $userID];
+    $response = RabbitClient::getConnection()->send_request($request);
+    ?>
 
-        <?php
-        $request = ['type' => RequestType::GET_USER_CATALOGS, Identifiers::USER_ID => $userID];
-        $response = RabbitClient::getConnection()->send_request($request);
-        ?>
+    <?php if (is_array($response) && !empty($response)): ?>
+        <?php foreach ($response as $catalog): ?>
+            <article class="bordered-article">
+                <a href="viewCatalog.php?catalogid=<?= urlencode($catalog['CatalogID']) ?>"
+                   style="cursor: pointer;">
+                    <strong><?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)</strong>
+                </a>
+            </article>
+        <?php endforeach; ?>
+    <?php else: ?>
+        <p style="text-align: center; margin-top: 1rem">No catalogs found</p>
+    <?php endif; ?>
 
-        <?php if (is_array($response) && !empty($response)): ?>
-            <div style="max-height: 80vh; overflow-y: auto; padding-right: 1rem;">
-
-                <?php foreach ($response as $catalog): ?>
-                    <div style="margin-bottom: 0.5rem; font-weight: bold; font-size: 1.2rem;">
-                        <a href="viewCatalog.php?id=<?= $catalog['CatalogID'] ?>" style="cursor: pointer;">
-                            <strong><?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)</strong>
-                        </a>
-                    </div>
-
-                    <div id="catalog-<?= $catalog['CatalogID'] ?>" class="hidden"
-                         style="margin-bottom: 1rem; padding-left: 1rem;">
-                        <?php if (!empty($catalog['games'])): ?>
-                            <?php foreach ($catalog['games'] as $game): ?>
-                                <?php
-                                $appid = $game['AppID'];
-                                $rating = $game['Rating'];
-                                $gameName = $game['GameName'];
-                                ?>
-                                <div class="game-div"
-                                     style="display:flex; align-items:center; padding:0.5rem; margin-bottom:0.4rem; border:1px solid var(--pico-form-element-border-color); border-radius:4px;">
-                                    <img src="<?= SteamUtils::getAppImage($appid) ?>" alt="<?= $gameName ?>"
-                                         style="max-width:120px; border-radius:2px; margin-right:1rem;">
-                                    <div style="text-align:left;">
-                                        <strong><?= $gameName ?></strong><br>
-                                        <small style="color: var(--pico-muted-color);">
-                                            Rating: <?= $rating ?>
-                                        </small>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <p style="text-align: center; color: var(--pico-muted-color);">No games in this catalog.</p>
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
-
-            </div>
-        <?php else: ?>
-            <p style="text-align: center; margin-top: 1rem">No catalogs found.</p>
-        <?php endif; ?>
-
-    </article>
 </main>
 </body>
 </html>

@@ -146,7 +146,7 @@ if ($featuredData && isset($featuredData['featured_win'])) {
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
+<main class="main">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>

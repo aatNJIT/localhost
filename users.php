@@ -35,9 +35,9 @@ if (isset($_SESSION[Identifiers::USER_ID])) {
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
-    <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav style="justify-content: center">
+<main class="main">
+    <article class="bordered-article">
+        <nav class="main-navigation">
             <ul>
                 <li>
                     <a href="index.php"> <i class="fa-solid fa-house">
@@ -85,22 +85,17 @@ if (isset($_SESSION[Identifiers::USER_ID])) {
         </nav>
     </article>
 
-    <?php
-    if ($successMessage) {
-        echo '<article style="background-color: lightgreen; margin-top: 1rem; margin-bottom: 1rem; color: darkgreen; border: 2px green solid">';
-        echo $successMessage;
-        echo '</article>';
-    }
+    <?php if ($successMessage): ?>
+        <article class="success">
+            <?= $successMessage ?>
+        </article>
+    <?php elseif ($errorMessage): ?>
+        <article class="error">'
+            <?= $errorMessage ?>
+        </article>'
+    <?php endif; ?>
 
-    if ($errorMessage) {
-        echo '<article style="background-color: indianred; margin-top: 1rem; margin-bottom: 1rem; color: darkred; border: 2px darkred solid">';
-        echo $errorMessage;
-        echo '</article>';
-    }
-    ?>
-
-    <article
-            style="margin-top: 1rem; text-align: center; border: 1px solid var(--pico-form-element-border-color); padding: 1rem;">
+    <article class="bordered-article" style="margin-top: 1rem; text-align: center; padding: 1rem;">
         <?php
         $request = ['type' => RequestType::GET_ALL_USERS];
         $response = RabbitClient::getConnection()->send_request($request);
@@ -127,18 +122,17 @@ if (isset($_SESSION[Identifiers::USER_ID])) {
                     $isCurrentUser = isset($_SESSION[Identifiers::USER_ID]) && $userID == $_SESSION[Identifiers::USER_ID];
                     ?>
 
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px; transition: background-color .1s;"
-                         onmouseover="this.style.backgroundColor='var(--pico-background-color)'"
-                         onmouseout="this.style.backgroundColor='transparent'">
+                    <div class="game-div" style="justify-content: space-between">
 
                         <div style="text-align: left;">
-                            <strong style="font-size: 1.1rem;">Username: <?= $username ?></strong>
+                            <strong class="steam-username">Username: <?= $username ?></strong>
                             <?php if ($isCurrentUser): ?>
                                 <span style="color: var(--pico-primary); margin-left: 0.5rem;">(You)</span>
                             <?php endif; ?>
                             <?php if ($isFollowing): ?>
-                                <span style="color: var(--pico-secondary); margin-left: 0.5rem;"><i
-                                            class="fa-solid fa-check"></i> Following</span>
+                                <span style="color: var(--pico-secondary); margin-left: 0.5rem;"><i class="fa-solid fa-check"></i>
+                                    Following
+                                </span>
                                 <span style="color: var(--pico-secondary); margin-left: 0.5rem;">
                                     Followed: <?= $followingDate ? date('Y-m-d', strtotime($followingDate)) : '' ?>
                                 </span>

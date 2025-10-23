@@ -1,7 +1,7 @@
 <?php
 class SteamUtils {
     public static function getGameTime($game): float {
-        return round($game['playtime_forever'] / 60, 1);
+        return round($game['Playtime'] / 60, 1);
     }
 
     public static function getAppImage($appId): string {

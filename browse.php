@@ -3,7 +3,7 @@ session_start();
 require_once('steam/SteamUtils.php');
 require_once('session.php');
 
-if (!isset($_SESSION[Identifiers::STEAM_ID])) {
+if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::STEAM_PROFILE])) {
     header("Location: profile.php");
     exit();
 }
@@ -22,9 +22,9 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
-    <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav style="justify-content: center">
+<main class="main">
+    <article class="bordered-article">
+        <nav class="main-navigation">
             <ul>
                 <li>
                     <a href="index.php">
@@ -54,7 +54,8 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
                 <?php endif; ?>
 
                 <li>
-                    <a href="viewUserCatalogs.php?userid=<?= $_SESSION[Identifiers::USER_ID] ?>"> <i class="fa-solid fa-list"></i> My Catalogs
+                    <a href="viewUserCatalogs.php?userid=<?= $_SESSION[Identifiers::USER_ID] ?>"> <i
+                                class="fa-solid fa-list"></i> My Catalogs
                     </a>
                 </li>
 
@@ -67,22 +68,50 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
         </nav>
     </article>
 
-    <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
+    <article class="bordered-article" style="text-align: center">
 
         <?php
-        $sessionGames = $_SESSION[Identifiers::STEAM_GAMES] ?? null;
-        $update = $sessionGames === null || (isset($sessionGames['gameupdatetime']) && time() - $sessionGames['gameupdatetime'] > 300);
+        $lastChecked = $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] ?? 0;
+        $shouldUpdate = time() - $lastChecked > 300;
 
-        if ($update) {
+        if ($shouldUpdate) {
             $request = ['type' => RequestType::GAMES, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
             $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
+
             if (is_array($response) && !empty($response)) {
-                $_SESSION[Identifiers::STEAM_GAMES] = $response;
+                $steamGames = $response[Identifiers::STEAM_GAMES] ?? [];
+
+                foreach ($steamGames as $game) {
+                    $userID = $_SESSION[Identifiers::USER_ID];
+                    $appID = $game['appid'];
+                    $gameName = $game['name'];
+                    $playtime = $game['playtime_forever'];
+
+                    $storeRequest = [
+                            'type' => RequestType::STORE_USER_GAME,
+                            Identifiers::USER_ID => $userID,
+                            'appid' => $appID,
+                            'name' => $gameName,
+                            'playtime' => $playtime,
+                    ];
+
+                    RabbitClient::getConnection()->send_request($storeRequest);
+                }
+
+                $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] = time();
             }
         }
 
+        $request = ['type' => RequestType::GET_USER_GAMES, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
+        $response = RabbitClient::getConnection()->send_request($request);
+
+        if (is_array($response)) {
+            $steamGames = $response;
+        } else {
+            $steamGames = [];
+        }
+
         $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE] ?? [];
-        $games = $_SESSION[Identifiers::STEAM_GAMES][Identifiers::STEAM_GAMES] ?? [];
         ?>
 
         <img src="<?= $profile["avatar"] ?? "N/A" ?>"
@@ -91,16 +120,17 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
         >
 
         <p>
-            <strong style="font-size: 1.1rem;"><?= $profile["personaname"] ?? "N/A" ?></strong>
-            <small style="color: var(--pico-muted-color);">(<?= round((time() - $_SESSION[Identifiers::STEAM_GAMES]['gameupdatetime']) / 60, 1) ?>
+            <strong class="steam-username"><?= $profile["personaname"] ?? "N/A" ?></strong>
+            <small style="color: var(--pico-muted-color);">(<?= round((time() - $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK]) / 60, 1) ?>
                 mins)</small><br>
             <small style="color: var(--pico-muted-color);">Steam ID: <?= $profile["steamid"] ?? "N/A" ?></small>
         </p>
 
-        <?php if (!empty($games)): ?>
+        <?php if (!empty($steamGames)): ?>
+
             <?php
-            usort($games, function ($a, $b) {
-                return $b['playtime_forever'] - $a['playtime_forever'];
+            usort($steamGames, function ($a, $b) {
+                return $b['Playtime'] - $a['Playtime'];
             });
             ?>
 
@@ -109,35 +139,40 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
             </label>
 
             <div style="max-height: 80vh; overflow-y: auto; padding-right: 1rem;">
-                <?php foreach ($games as $game): ?>
+                <?php foreach ($steamGames as $game): ?>
                     <?php
-                    $appid = $game['appid'];
-                    $name = $game['name'];
+                    $appid = $game['AppID'];
+                    $name = $game['Name'];
+                    $tags = json_decode($game['Tags']);
+                    $playtime = $game['Playtime'];
                     ?>
 
-                    <div class="game-div"
-                         style="display: flex; align-items: center; padding: 1rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px; cursor: pointer; transition: background-color .1s;"
-                         onmouseover="this.style.backgroundColor='var(--pico-background-color)'"
-                         onmouseout="this.style.backgroundColor='transparent'">
-
-                        <img src="<?= SteamUtils::getAppImage($appid) ?>"
-                             alt="<?= $name ?>"
+                    <div class="game-div">
+                        <img src="<?= SteamUtils::getAppImage($appid) ?>" alt="<?= $name ?>"
                              style="display: flex; max-width: 350px; border-radius: 2px; margin-right: 1rem;">
 
-                        <div style="text-align: left;">
+                        <div style="flex: 1; text-align: left;">
                             <strong style="font-size: 1.1rem;"><?= $name ?></strong><br>
                             <small style="color: var(--pico-muted-color);">
                                 <?= SteamUtils::getGameTime($game) ?> hours played
                             </small>
+
+                            <?php if (!empty($tags)): ?>
+                                <div class="game-tags">
+                                    <?php foreach ($tags as $tag): ?>
+                                        <span class="game-tags-background">
+                                            <?= htmlspecialchars($tag) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
         <?php else: ?>
-            <p style="text-align: center;">No games found or profile is private.</p>
+            <p style="text-align: center;">No games found.</p>
         <?php endif; ?>
-
-    </article>
 </main>
 </body>
 </html>

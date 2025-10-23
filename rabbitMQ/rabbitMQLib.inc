@@ -86,6 +86,7 @@ class rabbitMQClient
 
             $response = $this->response_queue[$uid];
             unset($this->response_queue[$uid]);
+
             return $response;
         } catch (Exception $e) {
             die("failed to send message to exchange: " . $e->getMessage() . "\n");

@@ -17,9 +17,9 @@ require_once('session.php');
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
-    <article style="border: 1px var(--pico-form-element-border-color) solid">
-        <nav style="justify-content: center">
+<main class="main">
+    <article class="bordered-article">
+        <nav class="main-navigation">
             <ul>
                 <li>
                     <a href="index.php">
@@ -64,26 +64,15 @@ require_once('session.php');
         </nav>
     </article>
 
-    <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
+    <article class="bordered-article" style="text-align: center">
 
-        <?php if (!isset($_SESSION[Identifiers::STEAM_ID])): ?>
+        <?php if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::STEAM_PROFILE])): ?>
             <a href='?login' role="button" class="primary">
                 <i class="fa-solid fa-link"></i> Link Steam Account
             </a>
         <?php else: ?>
             <?php
-            $sessionProfile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE] ?? null;
-            $update = $sessionProfile === null || (isset($sessionProfile['profileupdatetime']) && time() - $sessionProfile['profileupdatetime'] > 300);
-
-            if ($update) {
-                $request = ['type' => RequestType::PROFILE, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
-                $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
-                if (is_array($response) && !empty($response)) {
-                    $_SESSION[Identifiers::STEAM_PROFILE] = $response;
-                }
-            }
-
-            $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE] ?? [];
+            $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
             ?>
 
             <?php if (!empty($profile)): ?>

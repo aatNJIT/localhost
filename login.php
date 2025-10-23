@@ -26,6 +26,14 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             $_SESSION[Identifiers::SESSION_ID] = $response[Identifiers::SESSION_ID];
             $_SESSION[Identifiers::USERNAME] = $response[Identifiers::USERNAME];
             $_SESSION[Identifiers::STEAM_ID] = $response[Identifiers::STEAM_ID];
+
+            if (isset($response[Identifiers::STEAM_ID])) {
+                $request = ['type' => RequestType::PROFILE, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
+                $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
+                $_SESSION[Identifiers::STEAM_PROFILE] = $response;
+                $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] = 0;
+            }
+
             $_SESSION[Identifiers::LAST_SESSION_CHECK] = time();
 
             header('Location: profile.php');
@@ -49,7 +57,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 </head>
 
 <body>
-<main style="padding-left: 10vh; padding-right: 10vh;">
+<main class="main">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>
@@ -67,19 +75,15 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         </nav>
     </article>
 
-    <?php
-    if ($successMessage) {
-        echo '<article style="background-color: lightgreen; margin-top: 1rem; margin-bottom: 1rem; color: darkgreen; border: 2px green solid">';
-        echo $successMessage;
-        echo '</article>';
-    }
-
-    if ($errorMessage) {
-        echo '<article style="background-color: indianred; margin-top: 1rem; margin-bottom: 1rem; color: darkred; border: 2px darkred solid">';
-        echo $errorMessage;
-        echo '</article>';
-    }
-    ?>
+    <?php if ($successMessage): ?>
+        <article class="success">
+            <?= $successMessage ?>
+        </article>
+    <?php elseif ($errorMessage): ?>
+        <article class="error">'
+            <?= $errorMessage ?>
+        </article>'
+    <?php endif; ?>
 
     <form method="post">
         <div class="container" style=" margin-top: 1rem; padding-left: 12px; padding-right: 12px">
