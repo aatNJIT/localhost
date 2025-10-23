@@ -14,7 +14,7 @@ $server->process_requests('requestProcessor');
 echo PHP_EOL . "ENDED" . PHP_EOL;
 exit();
 
-function login($username, $password): bool|array
+function login(string $username, string $password): bool|array
 {
     $connection = MySQL::getConnection();
 
@@ -51,7 +51,7 @@ function login($username, $password): bool|array
     }
 }
 
-function register($username, $password): bool
+function register(string $username, string $password): bool
 {
     $connection = MySQL::getConnection();
 
@@ -77,7 +77,21 @@ function register($username, $password): bool
     }
 }
 
-function checkSession($sessionID, $userID): array|bool
+function getUser(int $userID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->errno != 0) {
+        return [];
+    }
+
+    $existsStatement = $connection->prepare("SELECT Username FROM Users WHERE ID = ?");
+    $existsStatement->bind_param("i", $userID);
+    $existsStatement->execute();
+    return $existsStatement->get_result()->fetch_assoc();
+}
+
+function checkSession(int $sessionID, int $userID): array|bool
 {
     $connection = MySQL::getConnection();
 
@@ -110,7 +124,7 @@ function checkSession($sessionID, $userID): array|bool
     return true;
 }
 
-function logout($sessionID, $userID): bool
+function logout(int $sessionID, int $userID): bool
 {
     $connection = MySQL::getConnection();
 
@@ -124,7 +138,7 @@ function logout($sessionID, $userID): bool
     return true;
 }
 
-function linkSteamAccount($userID, $steamID): bool
+function linkSteamAccount(int $userID, int $steamID): bool
 {
     $connection = MySQL::getConnection();
 
@@ -155,7 +169,7 @@ function linkSteamAccount($userID, $steamID): bool
     return $updateStatement->affected_rows > 0;
 }
 
-function unlinkSteamAccount($userID): bool
+function unlinkSteamAccount(int $userID): bool
 {
     $connection = MySQL::getConnection();
 
@@ -178,7 +192,7 @@ function unlinkSteamAccount($userID): bool
     return $updateStatement->affected_rows > 0;
 }
 
-function saveCatalog($userID, $title, $ratings, $names): bool
+function saveCatalog(int $userID, string $title, array $ratings, array $names): bool
 {
     $connection = MySQL::getConnection();
 
@@ -190,18 +204,20 @@ function saveCatalog($userID, $title, $ratings, $names): bool
     $catalogInsertStatement->bind_param("si", $title, $userID);
     if (!$catalogInsertStatement->execute()) {
         return false;
-    };
+    }
 
     $catalogID = $catalogInsertStatement->insert_id;
 
     foreach ($ratings as $appID => $rating) {
         $gameName = $names[$appID];
-        $catalogGameInsertStatement = $connection->prepare("INSERT INTO Catalog_Games (CatalogID, GameName, AppID, Rating) VALUES (?, ?, ?, ?)");
-        $catalogGameInsertStatement->bind_param("isii", $catalogID, $gameName, $appID, $rating);
+
+        $insertGameStatement = $connection->prepare("INSERT INTO Games (AppID, Name) VALUES (?, ?) ON DUPLICATE KEY UPDATE Name = VALUES(Name)");
+        $insertGameStatement->bind_param("is", $appID, $gameName);
+        $insertGameStatement->execute();
+
+        $catalogGameInsertStatement = $connection->prepare("INSERT INTO Catalog_Games (CatalogID, AppID, Rating) VALUES (?, ?, ?)");
+        $catalogGameInsertStatement->bind_param("iii", $catalogID, $appID, $rating);
         if (!$catalogGameInsertStatement->execute()) {
-            $catalogDeleteStatement = $connection->prepare("DELETE FROM Catalogs WHERE UserID = ?");
-            $catalogDeleteStatement->bind_param("i", $userID);
-            $catalogDeleteStatement->execute();
             return false;
         }
     }
@@ -209,7 +225,7 @@ function saveCatalog($userID, $title, $ratings, $names): bool
     return true;
 }
 
-function getUserCatalogs($userID): array
+function getUserCatalogs(int $userID): array
 {
     $connection = MySQL::getConnection();
 
@@ -217,10 +233,10 @@ function getUserCatalogs($userID): array
         return [];
     }
 
-    $catalogSelectStmt = $connection->prepare("SELECT CatalogID, Title FROM Catalogs WHERE UserID = ?");
-    $catalogSelectStmt->bind_param("i", $userID);
-    $catalogSelectStmt->execute();
-    $catalogResult = $catalogSelectStmt->get_result();
+    $catalogSelectStatement = $connection->prepare("SELECT CatalogID, Title FROM Catalogs WHERE UserID = ?");
+    $catalogSelectStatement->bind_param("i", $userID);
+    $catalogSelectStatement->execute();
+    $catalogResult = $catalogSelectStatement->get_result();
 
     if ($catalogResult->num_rows === 0) {
         return [];
@@ -231,10 +247,23 @@ function getUserCatalogs($userID): array
     $catalogs = [];
     foreach ($allCatalogs as $catalog) {
         $catalogID = $catalog['CatalogID'];
-        $catalogGamesStmt = $connection->prepare("SELECT GameID, GameName, AppID, Rating FROM Catalog_Games WHERE CatalogID = ?");
-        $catalogGamesStmt->bind_param("i", $catalogID);
-        $catalogGamesStmt->execute();
-        $gamesResult = $catalogGamesStmt->get_result();
+
+        $catalogGamesStatement = $connection->prepare("
+            SELECT 
+                g.AppID, 
+                g.Name, 
+                g.Tags, 
+                cg.Rating,
+                ug.Playtime
+            FROM Catalog_Games cg 
+            INNER JOIN Games g ON cg.AppID = g.AppID 
+            LEFT JOIN User_Games ug ON g.AppID = ug.AppID AND ug.UserID = ?
+            WHERE cg.CatalogID = ?
+        ");
+
+        $catalogGamesStatement->bind_param("ii", $userID, $catalogID);
+        $catalogGamesStatement->execute();
+        $gamesResult = $catalogGamesStatement->get_result();
         $catalog['games'] = $gamesResult->fetch_all(MYSQLI_ASSOC);
         $catalogs[] = $catalog;
     }
@@ -242,7 +271,7 @@ function getUserCatalogs($userID): array
     return $catalogs;
 }
 
-function getCatalog($catalogID): array
+function getCatalog(int $catalogID): array
 {
     $connection = MySQL::getConnection();
 
@@ -250,10 +279,34 @@ function getCatalog($catalogID): array
         return [];
     }
 
-    $catalogSelectStmt = $connection->prepare("SELECT CatalogID, Title FROM Catalogs WHERE CatalogID = ?");
-    $catalogSelectStmt->bind_param("i", $catalogID);
-    $catalogSelectStmt->execute();
-    return $catalogSelectStmt->get_result()->fetch_assoc();
+    $catalogSelectStatment = $connection->prepare("SELECT CatalogID, Title, UserID FROM Catalogs WHERE CatalogID = ?");
+    $catalogSelectStatment->bind_param("i", $catalogID);
+    $catalogSelectStatment->execute();
+    $catalog = $catalogSelectStatment->get_result()->fetch_assoc();
+
+    if (!$catalog) {
+        return [];
+    }
+
+    $catalogGamesStatement = $connection->prepare("
+            SELECT 
+                g.AppID, 
+                g.Name, 
+                g.Tags, 
+                cg.Rating,
+                ug.Playtime
+            FROM Catalog_Games cg 
+            INNER JOIN Games g ON cg.AppID = g.AppID 
+            LEFT JOIN User_Games ug ON g.AppID = ug.AppID AND ug.UserID = ?
+            WHERE cg.CatalogID = ?
+    ");
+
+    $catalogGamesStatement->bind_param("ii", $catalog['UserID'], $catalogID);
+    $catalogGamesStatement->execute();
+    $gamesResult = $catalogGamesStatement->get_result();
+    $catalog['games'] = $gamesResult->fetch_all(MYSQLI_ASSOC);
+
+    return $catalog;
 }
 
 function getAllUsers(): array
@@ -268,7 +321,7 @@ function getAllUsers(): array
     return $selectAllUsersStatement->fetch_all(MYSQLI_ASSOC);
 }
 
-function followUser($followerID, $followedID): bool
+function followUser(int $followerID, int $followedID): bool
 {
     if ($followerID === $followedID) {
         return false;
@@ -294,7 +347,7 @@ function followUser($followerID, $followedID): bool
     return $insertFollowerStatement->affected_rows > 0;
 }
 
-function unfollowUser($followerID, $followedID): bool
+function unfollowUser(int $followerID, int $followedID): bool
 {
     if ($followerID === $followedID) {
         return false;
@@ -312,7 +365,7 @@ function unfollowUser($followerID, $followedID): bool
     return $deleteFollowerStatement->affected_rows > 0;
 }
 
-function getUserFollowers($userID): array
+function getUserFollowers(int $userID): array
 {
     $connection = MySQL::getConnection();
 
@@ -328,7 +381,7 @@ function getUserFollowers($userID): array
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-function getUserFollowing($userID): array
+function getUserFollowing(int $userID): array
 {
     $connection = MySQL::getConnection();
 
@@ -344,7 +397,7 @@ function getUserFollowing($userID): array
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-function addCatalogComment($catalogID, $userID, $comment): bool
+function addCatalogComment(int $catalogID, int $userID, string $comment): bool
 {
     $connection = MySQL::getConnection();
 
@@ -356,6 +409,82 @@ function addCatalogComment($catalogID, $userID, $comment): bool
     $insertCommentStatement->bind_param("iis", $catalogID, $userID, $comment);
     $insertCommentStatement->execute();
     return $insertCommentStatement->affected_rows > 0;
+}
+
+function getCatalogComments(int $catalogID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return [];
+    }
+
+    $selectStatement = $connection->prepare("SELECT UserID, Text, Created FROM Catalog_Comments WHERE CatalogID = ?");
+    $selectStatement->bind_param("i", $catalogID);
+    $selectStatement->execute();
+    return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+function storeUserGame(int $userID, int $appID, string $name, int $playtime): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return false;
+    }
+
+    $emptyTags = json_encode([]);
+    $insertGameStatement = $connection->prepare("INSERT INTO Games (AppID, Name, Tags) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE Name = VALUES(Name)");
+    $insertGameStatement->bind_param("iss", $appID, $name, $emptyTags);
+    $insertGameStatement->execute();
+
+    $insertUserGameStatement = $connection->prepare("INSERT INTO User_Games (UserID, AppID, Playtime) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE Playtime = VALUES(Playtime)");
+    $insertUserGameStatement->bind_param("iii", $userID, $appID, $playtime);
+    $insertUserGameStatement->execute();
+
+    return $insertUserGameStatement->affected_rows > 0;
+}
+
+function getUserGames(int $userID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return [];
+    }
+
+    $selectGamesStatement = $connection->prepare("
+        SELECT 
+            g.AppID, 
+            g.Name, 
+            g.Tags, 
+            ug.Playtime 
+        FROM User_Games ug
+        INNER JOIN Games g ON ug.AppID = g.AppID
+        WHERE ug.UserID = ?
+    ");
+
+    $selectGamesStatement->bind_param("i", $userID);
+    $selectGamesStatement->execute();
+    $result = $selectGamesStatement->get_result();
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+function storeGameTags(int $appID, array $tags): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno !== 0) {
+        return false;
+    }
+
+    $tagsJson = json_encode($tags);
+
+    $updateTagsStatement = $connection->prepare("UPDATE Games SET Tags = ? WHERE AppID = ?");
+    $updateTagsStatement->bind_param("si", $tagsJson, $appID);
+    $updateTagsStatement->execute();
+
+    return $updateTagsStatement->affected_rows > 0;
 }
 
 function requestProcessor($request)
@@ -383,7 +512,12 @@ function requestProcessor($request)
         'getuserfollowing' => getUserFollowing($request['userid']),
         'unfollowuser' => unfollowUser($request['userid'], $request['followid']),
         'followuser' => followUser($request['userid'], $request['followid']),
+        'storeusergame' => storeUserGame($request['userid'], $request['appid'], $request['name'], $request['playtime']),
+        'getusergames' => getUserGames($request['userid']),
+        'storegametags' => storeGameTags($request['appid'], $request['tags']),
         'addcatalogcomment' => addCatalogComment($request['catalogid'], $request['userid'], $request['comment']),
+        'getcatalogcomments' => getCatalogComments($request['catalogid']),
+        'getuser' => getUser($request['userid']),
         default => false,
     };
 
