@@ -68,10 +68,48 @@ function getUserProfile(string $steamid): array
                     'timecreated' => $player['timecreated'] ?? '',
                     'loccountrycode' => $player['loccountrycode'] ?? '',
                     'locstatecode' => $player['locstatecode'] ?? '',
-                    'loccityid' => $player['loccityid'] ?? '',
-                    'profileupdatetime' => time(),
+                    'loccityid' => $player['loccityid'] ?? ''
             ],
     ];
+}
+
+function getGameTags(int $appid): array
+{
+    $appDetails = "https://store.steampowered.com/api/appdetails?appids=$appid";
+    $context = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'Mozilla/5.0']]);
+
+    $response = @file_get_contents($appDetails, false, $context);
+    if (!$response) {
+        return [];
+    }
+
+    $content = json_decode($response, true);
+
+    if (!isset($content[$appid]['success']) || $content[$appid]['success'] !== true) {
+        return [];
+    }
+
+    if (!isset($content[$appid]['data'])) {
+        return [];
+    }
+
+    $data = $content[$appid]['data'];
+    $genres = $data['genres'] ?? [];
+    $categories = $data['categories'] ?? [];
+
+    $tags = [];
+    foreach ($genres as $genre) {
+        if (isset($genre['description'])) {
+            $tags[] = $genre['description'];
+        }
+    }
+    foreach ($categories as $category) {
+        if (isset($category['description'])) {
+            $tags[] = $category['description'];
+        }
+    }
+
+    return array_values(array_unique($tags));
 }
 
 function requestProcessor($request)
@@ -88,6 +126,8 @@ function requestProcessor($request)
         return getUserGames($request['steamid']);
     } else if ($type == 'profile') {
         return getuserProfile($request['steamid']);
+    } else if ($type == 'tags') {
+        return getGameTags($request['appid']);
     }
 
     return false;
