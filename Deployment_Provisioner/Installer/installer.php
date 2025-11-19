@@ -2,7 +2,6 @@
 <?php
 require_once('../RabbitMQ/get_host_info.inc');
 require_once('../RabbitMQ/rabbitMQLib.inc');
-date_default_timezone_set('America/New_York');
 
 $iniPath = __DIR__ . '/../RabbitMQ/rabbitMQ.ini';
 if (!file_exists($iniPath)) {

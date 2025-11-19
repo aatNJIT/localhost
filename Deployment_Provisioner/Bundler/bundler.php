@@ -1,7 +1,6 @@
 #!/usr/bin/php
 <?php
 require_once('../RabbitMQ/RabbitClient.php');
-date_default_timezone_set('America/New_York');
 
 while (true) {
     $type = strtolower(readline("Type? (WEBSERVER/BROKER/DATASOURCE/EXIT): "));
@@ -158,10 +157,15 @@ function getCommandsForType($type, $bundleName, $version): string
     $commands = [
             'webserver' => "
                 sudo rm -rf /var/www/sample/*
-                unzip -o -q $zipFileName -d /var/www/sample/
+                sudo unzip -o -q $zipFileName -d /var/www/sample/
                 sudo systemctl restart apache2",
-            'broker' => '',
-            'datasource' => '',
+            'broker' => "
+                sudo rm -rf /var/Broker/*
+                sudo unzip -o -q $zipFileName -d /var/Broker/
+                sudo systemctl restart rabbitmq-server",
+            'datasource' => "
+                sudo rm -rf /var/Datasource/*
+                sudo unzip -o -q $zipFileName -d /var/Datasource/",
     ];
     return $commands[$type] ?? '';
 }
