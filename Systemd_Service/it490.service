@@ -1,0 +1,16 @@
+[Unit]
+Description=IT490 RabbitMQ Server Service
+After=network.target mysql.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+# Replace User=anthony with your own user for your machine.
+User=anthony
+WorkingDirectory=/var/Broker/RabbitMQ
+ExecStart=/usr/bin/env php /var/Broker/RabbitMQ/rabbitMQServer.php
+
+[Install]
+WantedBy=multi-user.target
