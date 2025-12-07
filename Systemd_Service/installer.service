@@ -12,7 +12,7 @@
 # =============================================================
 
 [Unit]
-Description=IT490 Deployment Provisioner Installer
+Description=Localhost Installer Service
 After=network.target mysql.service
 StartLimitIntervalSec=0
 

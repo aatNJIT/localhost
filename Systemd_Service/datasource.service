@@ -1,0 +1,28 @@
+# CONFIGURATION
+# Change User=anthony to your machine's username.
+#
+# INSTALLATION
+# 1. Place this file inside of: /etc/systemd/system/
+# 2. Reload systemd: sudo systemctl daemon-reload
+# 3. Enable service: sudo systemctl enable datasource.service
+# 4. Start service: sudo systemctl start datasource.service
+# 5. Check status: sudo systemctl status datasource.service
+# ========================================================
+
+[Unit]
+Description=Localhost Datasource Service
+After=network.target mysql.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+# Make changes here.
+# ==================================================================
+User=anthony
+WorkingDirectory=/var/Datasource/RabbitMQ
+ExecStart=/usr/bin/env php /var/Datasource/RabbitMQ/rabbitMQServer.php
+# ==================================================================
+[Install]
+WantedBy=multi-user.target

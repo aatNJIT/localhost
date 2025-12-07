@@ -8,13 +8,13 @@
 # INSTALLATION
 # 1. Place this file inside of: /etc/systemd/system/
 # 2. Reload systemd: sudo systemctl daemon-reload
-# 3. Enable service: sudo systemctl enable it490.service
-# 4. Start service: sudo systemctl start it490.service
-# 5. Check status: sudo systemctl status it490.service
+# 3. Enable service: sudo systemctl enable broker.service
+# 4. Start service: sudo systemctl start broker.service
+# 5. Check status: sudo systemctl status broker.service
 # ========================================================
 
 [Unit]
-Description=IT490 RabbitMQ Server Service
+Description=Localhost Broker Service
 After=network.target mysql.service
 StartLimitIntervalSec=0
 
