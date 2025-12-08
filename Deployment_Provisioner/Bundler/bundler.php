@@ -167,10 +167,12 @@ function getCommandsForType($type, $bundleName, $version): string
             'broker' => "
                 sudo rm -rf /var/Broker/*
                 sudo unzip -o -q $zipFileName -d /var/Broker/
-                sudo systemctl restart rabbitmq-server",
+                sudo systemctl restart rabbitmq-server
+                sudo systemctl restart broker.service",
             'datasource' => "
                 sudo rm -rf /var/Datasource/*
-                sudo unzip -o -q $zipFileName -d /var/Datasource/",
+                sudo unzip -o -q $zipFileName -d /var/Datasource/
+                sudo systemctl restart datasource.service",
     ];
     return $commands[$type] ?? '';
 }
