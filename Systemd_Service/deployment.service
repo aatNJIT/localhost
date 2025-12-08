@@ -1,0 +1,31 @@
+# CONFIGURATION
+# 1. Change User=anthony to your machine's username.
+# 2. Change the paths of WorkingDirectory and ExecStart.
+#    /home/anthony/Desktop/Deployment_System/RabbitMQ/
+#
+# INSTALLATION
+# 1. Place this file inside of: /etc/systemd/system/
+# 2. Reload systemd:  sudo systemctl daemon-reload
+# 3. Enable service:  sudo systemctl enable deployment.service
+# 4. Start service:   sudo systemctl start deployment.service
+# 5. Check status:    sudo systemctl status deployment.service
+# =============================================================
+
+[Unit]
+Description=Localhost Deployment Service
+After=network.target mysql.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+# Make changes here.
+# ===============================================================================================
+User=anthony
+WorkingDirectory=/home/anthony/Desktop/Deployment_System/RabbitMQ/
+ExecStart=/usr/bin/env php /home/anthony/Desktop/Deployment_System/RabbitMQ/rabbitMQServer.php
+# ===============================================================================================
+[Install]
+WantedBy=multi-user.target
+
