@@ -157,19 +157,16 @@ function getCommandsForType($type, $bundleName, $version): string
 {
     $zipFileName = $bundleName . '_v' . $version . '.zip';
     $commands = [
-            'webserver' => "
-                sudo rm -rf /var/www/sample/*
+        'webserver' => "
                 sudo unzip -o -q $zipFileName -d /var/www/sample/
                 sudo systemctl restart apache2",
-            'broker' => "
-                sudo rm -rf /var/Broker/*
+        'broker' => "
                 sudo unzip -o -q $zipFileName -d /var/Broker/
                 sudo systemctl restart rabbitmq-server
                 sudo systemctl restart broker.service",
-            'datasource' => "
-                sudo rm -rf /var/Datasource/*
+        'datasource' => "
                 sudo unzip -o -q $zipFileName -d /var/Datasource/
                 sudo systemctl restart datasource.service",
     ];
-    return $commands[$type] ?? '';
+   return $commands[$type] ?? '';
 }
