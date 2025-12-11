@@ -10,19 +10,17 @@ if (!file_exists($iniPath)) {
 }
 
 $config = parse_ini_file($iniPath, true);
-
-$server = new rabbitMQServer("rabbitMQ.ini", "Webserver Qa");
+$server = new rabbitMQServer("rabbitMQ.ini", 'Datasource Qa');
 echo PHP_EOL . "STARTED" . PHP_EOL;
 $server->process_requests('requestProcessor');
 echo PHP_EOL . "ENDED" . PHP_EOL;
 exit();
 
-function deployBundle($bundleType, $bundlePath): bool
+function deployBundle($bundleType, $bundleEnvironment, $bundlePath): bool
 {
     global $config;
-
-    $deploymentHost = $config['Webserver Qa']['BROKER_HOST'];
-    $deploymentUser = $config['Webserver Qa']['DEPLOYMENT_USER'];
+    $deploymentHost = $config['Deployment']['BROKER_HOST'];
+    $deploymentUser = $config['Deployment']['DEPLOYMENT_USER'];
 
     $localDownloadDirectory = __DIR__ . '/' . $bundleType;
     if (!is_dir($localDownloadDirectory)) {
@@ -50,12 +48,27 @@ function deployBundle($bundleType, $bundlePath): bool
 
     $originalDir = getcwd();
     $deploymentCommands = $bundleZip->getFromName('deployment_commands.txt');
-    $bundleZip->close();
+    $rabbitMqIni = $bundleZip->getFromName('rabbitMQ.ini');
 
     if (!chdir($localDownloadDirectory)) {
         echo "Failed to change directory to $localDownloadDirectory\n";
         return false;
     }
+
+    if ($rabbitMqIni && strlen($rabbitMqIni) > 0) {
+        $brokerHostToUse = $config[$bundleType . $bundleEnvironment]['TARGET_BROKER_HOST'];
+
+        if (empty($brokerHostToUse)) {
+            echo "Missing TARGET_BROKER_HOST for " . $bundleType . ' ' . $bundleEnvironment;
+            return false;
+        }
+
+        $updatedRabbitMqIni = preg_replace('/^BROKER_HOST\s*=\s*.*/m', 'BROKER_HOST = ' . $brokerHostToUse, $rabbitMqIni);
+        $bundleZip->deleteName('rabbitMQ.ini');
+        $bundleZip->addFromString('rabbitMQ.ini', $updatedRabbitMqIni);
+    }
+
+    $bundleZip->close();
 
     if ($deploymentCommands && strlen($deploymentCommands) > 0) {
         $commandLines = array_filter(array_map('trim', explode("\n", $deploymentCommands)));
@@ -83,7 +96,7 @@ function requestProcessor($request): bool
     $type = $request['type'];
 
     return match ($type) {
-        'deploybundle' => deployBundle($request['bundletype'], $request['bundlepath']),
+        'deploybundle' => deployBundle($request['bundletype'], $request['bundleenvironment'], $request['bundlepath']),
         default => false,
     };
 }

@@ -127,11 +127,8 @@ function createZip($type, $filePath, $bundleName, $version): string|false
     if (is_file($filePath)) {
         $zip->addFile($filePath, basename($filePath));
     } else if (is_dir($filePath)) {
-        //NEW CHANGE
-        // ---
         $trimmedPath = rtrim($filePath, '/\\') . DIRECTORY_SEPARATOR;
         $len = strlen($trimmedPath);
-        // ---
         $files = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($filePath, FilesystemIterator::SKIP_DOTS),
                 RecursiveIteratorIterator::LEAVES_ONLY

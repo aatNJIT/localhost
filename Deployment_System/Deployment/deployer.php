@@ -105,6 +105,7 @@ while (true) {
             $result = RabbitClient::getConnection($server)->send_request([
                     "type" => "deploybundle",
                     "bundletype" => $type,
+		            "bundleenvironment" => $environment,
                     "bundlepath" => $selectedBundlePath
             ]);
 
