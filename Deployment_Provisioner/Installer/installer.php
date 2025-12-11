@@ -56,8 +56,11 @@ function deployBundle($bundleType, $bundleEnvironment, $bundlePath): bool
         return false;
     }
     
+    echo $bundleType;
+    echo $bundleEnvironment;
+
     if ($rabbitMqIni && strlen($rabbitMqIni) > 0) {
-        $brokerHostToUse = $config[$bundleType . $bundleEnvironment]['TARGET_BROKER_HOST'];
+        $brokerHostToUse = $config[ucwords($bundleType) . ' ' . ucwords($bundleEnvironment)]['TARGET_BROKER_HOST'];
         
         if (empty($brokerHostToUse)) {
             echo "Missing TARGET_BROKER_HOST for " . $bundleType . ' ' . $bundleEnvironment . "\n";
