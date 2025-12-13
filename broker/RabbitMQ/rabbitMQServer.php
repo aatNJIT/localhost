@@ -1,5 +1,6 @@
 #!/usr/bin/php
 <?php
+require_once('logger.php');
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
@@ -22,12 +23,12 @@ function login(string $username, string $password): bool|array
         return false;
     }
 
-    $statement = $connection->prepare("SELECT * FROM Users WHERE Username = ? AND Password = SHA2(?, 256)");
-    $statement->bind_param("ss", $username, $password);
+    $statement = $connection->prepare("SELECT * FROM Users WHERE Username = ?");
+    $statement->bind_param("s", $username);
     $statement->execute();
 
     $user = $statement->get_result()->fetch_assoc();
-    if ($user != null) {
+    if ($user != null && password_verify($password, $user['Password'])) {
         try {
             // let's pretend like this is secure
             $sessionID = random_int(PHP_INT_MIN, PHP_INT_MAX);
@@ -67,7 +68,7 @@ function register(string $username, string $password): bool
         return false;
     }
 
-    $statement = $connection->prepare("INSERT INTO Users (Username, Password) VALUES (?, SHA2(?, 256))");
+    $statement = $connection->prepare("INSERT INTO Users (Username, Password) VALUES (?, ?)");
     $statement->bind_param("ss", $username, $password);
 
     if ($statement->execute()) {

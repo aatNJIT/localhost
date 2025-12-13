@@ -23,9 +23,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         $request = array();
         $request['type'] = RequestType::LOGIN;
         $request[Identifiers::USERNAME] = $username;
-        $request[Identifiers::PASSWORD] = hash('sha256', $password);
+        $request[Identifiers::PASSWORD] = $password;
         $response = RabbitClient::getConnection()->send_request($request);
-        log_message("Login request sent for user $username.");
+        
 
         if (is_array($response) && isset($response[Identifiers::USER_ID]) && isset($response[Identifiers::SESSION_ID])) {
             session_regenerate_id();

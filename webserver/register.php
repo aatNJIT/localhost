@@ -20,7 +20,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         $request = array();
         $request['type'] = RequestType::REGISTER;
         $request[Identifiers::USERNAME] = $username;
-        $request[Identifiers::PASSWORD] = hash('sha256', $password);
+        $request[Identifiers::PASSWORD] = password_hash($password, PASSWORD_BCRYPT);
 
         $client = RabbitClient::getConnection();
         log_message("Attempting to register user $username.");
