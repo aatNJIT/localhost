@@ -6,7 +6,6 @@ require_once('rabbitMQLib.inc');
 require_once('../MySQL/MySQL.php');
 
 $server = new rabbitMQServer("rabbitMQ.ini", "Apache");
-
 echo PHP_EOL . "STARTED" . PHP_EOL;
 
 $server->process_requests('requestProcessor');
@@ -27,28 +26,29 @@ function login(string $username, string $password): bool|array
     $statement->execute();
 
     $user = $statement->get_result()->fetch_assoc();
-    if ($user != null && password_verify($password, $user['Password'])) {
-        try {
-            // let's pretend like this is secure
-            $sessionID = random_int(PHP_INT_MIN, PHP_INT_MAX);
-        } catch (Exception $e) {
-            return false;
-        }
-
-        $userID = $user['ID'];
-        $sessionStatement = $connection->prepare("INSERT INTO Sessions (SessionID, UserID, Created, Activity) VALUES (?, ?, NOW(), NOW())");
-        $sessionStatement->bind_param("ii", $sessionID, $userID);
-        $sessionStatement->execute();
-
-        return array(
-                'userid' => $userID,
-                'username' => $username,
-                'steamid' => $user['SteamID'],
-                'sessionid' => $sessionID
-        );
-    } else {
+    if (!$user || !password_verify($password, $user['Password'])) {
         return false;
     }
+
+    try {
+        // let's pretend like this is secure
+        $sessionID = random_int(PHP_INT_MIN, PHP_INT_MAX);
+    } catch (Exception) {
+        return false;
+    }
+
+    $userID = $user['ID'];
+    $userSteamID = $user['SteamID'];
+    $sessionStatement = $connection->prepare("INSERT INTO Sessions (SessionID, UserID, Created, Activity) VALUES (?, ?, NOW(), NOW())");
+    $sessionStatement->bind_param("ii", $sessionID, $userID);
+    $sessionStatement->execute();
+
+    return array(
+            'userid' => $userID,
+            'username' => $username,
+            'steamid' => $userSteamID,
+            'sessionid' => $sessionID
+    );
 }
 
 function register(string $username, string $password): bool
@@ -69,12 +69,8 @@ function register(string $username, string $password): bool
 
     $statement = $connection->prepare("INSERT INTO Users (Username, Password) VALUES (?, ?)");
     $statement->bind_param("ss", $username, $password);
-
-    if ($statement->execute()) {
-        return true;
-    } else {
-        return false;
-    }
+    $statement->execute();
+    return true;
 }
 
 function getUser(int $userID): array
@@ -142,7 +138,7 @@ function linkSteamAccount(int $userID, int $steamID): bool
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->errno != 0) {
+    if ($connection->errno !== 0) {
         return false;
     }
 
@@ -165,8 +161,7 @@ function linkSteamAccount(int $userID, int $steamID): bool
     $updateStatement = $connection->prepare("UPDATE Users SET SteamID = ? WHERE ID = ?");
     $updateStatement->bind_param("ii", $steamID, $userID);
     $updateStatement->execute();
-
-    return $updateStatement->affected_rows > 0;
+    return true;
 }
 
 function unlinkSteamAccount(int $userID): bool
@@ -188,16 +183,24 @@ function unlinkSteamAccount(int $userID): bool
     $updateStatement = $connection->prepare("UPDATE Users SET SteamID = NULL WHERE ID = ?");
     $updateStatement->bind_param("i", $userID);
     $updateStatement->execute();
-
-    return $updateStatement->affected_rows > 0;
+    return true;
 }
 
-function saveCatalog(int $userID, string $title, array $ratings, array $names): bool
+function saveCatalog(int $userID, string $title, array $ratings): bool
 {
     $connection = MySQL::getConnection();
 
     if ($connection->errno != 0) {
         return false;
+    }
+
+    foreach ($ratings as $appID => $rating) {
+        $gameExistsStatement = $connection->prepare("SELECT AppID FROM Games WHERE AppID = ?");
+        $gameExistsStatement->bind_param("i", $appID);
+        $gameExistsStatement->execute();
+        if ($gameExistsStatement->get_result()->num_rows <= 0) {
+            return false;
+        }
     }
 
     $catalogInsertStatement = $connection->prepare("INSERT INTO Catalogs (Title, UserID) VALUES (?, ?)");
@@ -209,15 +212,9 @@ function saveCatalog(int $userID, string $title, array $ratings, array $names): 
     $catalogID = $catalogInsertStatement->insert_id;
 
     foreach ($ratings as $appID => $rating) {
-        $gameName = $names[$appID];
-
-        $insertGameStatement = $connection->prepare("INSERT INTO Games (AppID, Name) VALUES (?, ?) ON DUPLICATE KEY UPDATE Name = VALUES(Name)");
-        $insertGameStatement->bind_param("is", $appID, $gameName);
-        $insertGameStatement->execute();
-
-        $catalogGameInsertStatement = $connection->prepare("INSERT INTO Catalog_Games (CatalogID, AppID, Rating) VALUES (?, ?, ?)");
-        $catalogGameInsertStatement->bind_param("iii", $catalogID, $appID, $rating);
-        if (!$catalogGameInsertStatement->execute()) {
+        $gameExistsStatement = $connection->prepare("INSERT INTO Catalog_Games (CatalogID, AppID, Rating) VALUES (?, ?, ?)");
+        $gameExistsStatement->bind_param("iii", $catalogID, $appID, $rating);
+        if (!$gameExistsStatement->execute()) {
             return false;
         }
     }
@@ -229,46 +226,14 @@ function getUserCatalogs(int $userID): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return [];
     }
 
     $catalogSelectStatement = $connection->prepare("SELECT CatalogID, Title FROM Catalogs WHERE UserID = ?");
     $catalogSelectStatement->bind_param("i", $userID);
     $catalogSelectStatement->execute();
-    $catalogResult = $catalogSelectStatement->get_result();
-
-    if ($catalogResult->num_rows === 0) {
-        return [];
-    }
-
-    $allCatalogs = $catalogResult->fetch_all(MYSQLI_ASSOC);
-
-    $catalogs = [];
-    foreach ($allCatalogs as $catalog) {
-        $catalogID = $catalog['CatalogID'];
-
-        $catalogGamesStatement = $connection->prepare("
-            SELECT 
-                g.AppID, 
-                g.Name, 
-                g.Tags, 
-                cg.Rating,
-                ug.Playtime
-            FROM Catalog_Games cg 
-            INNER JOIN Games g ON cg.AppID = g.AppID 
-            LEFT JOIN User_Games ug ON g.AppID = ug.AppID AND ug.UserID = ?
-            WHERE cg.CatalogID = ?
-        ");
-
-        $catalogGamesStatement->bind_param("ii", $userID, $catalogID);
-        $catalogGamesStatement->execute();
-        $gamesResult = $catalogGamesStatement->get_result();
-        $catalog['games'] = $gamesResult->fetch_all(MYSQLI_ASSOC);
-        $catalogs[] = $catalog;
-    }
-
-    return $catalogs;
+    return $catalogSelectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
 function getCatalog(int $catalogID): array
@@ -293,15 +258,13 @@ function getCatalog(int $catalogID): array
                 g.AppID, 
                 g.Name, 
                 g.Tags, 
-                cg.Rating,
-                ug.Playtime
+                cg.Rating
             FROM Catalog_Games cg 
             INNER JOIN Games g ON cg.AppID = g.AppID 
-            LEFT JOIN User_Games ug ON g.AppID = ug.AppID AND ug.UserID = ?
             WHERE cg.CatalogID = ?
     ");
 
-    $catalogGamesStatement->bind_param("ii", $catalog['UserID'], $catalogID);
+    $catalogGamesStatement->bind_param("i", $catalogID);
     $catalogGamesStatement->execute();
     $gamesResult = $catalogGamesStatement->get_result();
     $catalog['games'] = $gamesResult->fetch_all(MYSQLI_ASSOC);
@@ -313,7 +276,7 @@ function getAllUsers(): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return [];
     }
 
@@ -329,7 +292,7 @@ function followUser(int $followerID, int $followedID): bool
 
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return false;
     }
 
@@ -344,7 +307,7 @@ function followUser(int $followerID, int $followedID): bool
     $insertFollowerStatement = $connection->prepare("INSERT INTO Followers (FollowerID, FollowedID) VALUEs (?, ?)");
     $insertFollowerStatement->bind_param("ii", $followerID, $followedID);
     $insertFollowerStatement->execute();
-    return $insertFollowerStatement->affected_rows > 0;
+    return true;
 }
 
 function unfollowUser(int $followerID, int $followedID): bool
@@ -355,7 +318,7 @@ function unfollowUser(int $followerID, int $followedID): bool
 
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return false;
     }
 
@@ -369,7 +332,7 @@ function getUserFollowers(int $userID): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return [];
     }
 
@@ -385,7 +348,7 @@ function getUserFollowing(int $userID): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return [];
     }
 
@@ -401,21 +364,29 @@ function addCatalogComment(int $catalogID, int $userID, string $comment): bool
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
+        return false;
+    }
+
+    $existsStatement = $connection->prepare("SELECT CatalogID FROM Catalogs WHERE CatalogID = ?");
+    $existsStatement->bind_param("i", $catalogID);
+    $existsStatement->execute();
+
+    if ($existsStatement->get_result()->num_rows <= 0) {
         return false;
     }
 
     $insertCommentStatement = $connection->prepare("INSERT INTO Catalog_Comments (CatalogID, UserID, Text) VALUEs (?, ?, ?)");
     $insertCommentStatement->bind_param("iis", $catalogID, $userID, $comment);
     $insertCommentStatement->execute();
-    return $insertCommentStatement->affected_rows > 0;
+    return true;
 }
 
 function getCatalogComments(int $catalogID): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
+    if ($connection->connect_errno != 0) {
         return [];
     }
 
@@ -425,69 +396,70 @@ function getCatalogComments(int $catalogID): array
     return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-function storeUserGame(int $userID, int $appID, string $name, int $playtime): bool
+function getGames($lastAppID, $limit): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
-        return false;
-    }
-
-    $emptyTags = json_encode([]);
-    $insertGameStatement = $connection->prepare("INSERT INTO Games (AppID, Name, Tags) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE Name = VALUES(Name)");
-    $insertGameStatement->bind_param("iss", $appID, $name, $emptyTags);
-    $insertGameStatement->execute();
-
-    $insertUserGameStatement = $connection->prepare("INSERT INTO User_Games (UserID, AppID, Playtime) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE Playtime = VALUES(Playtime)");
-    $insertUserGameStatement->bind_param("iii", $userID, $appID, $playtime);
-    $insertUserGameStatement->execute();
-
-    return $insertUserGameStatement->affected_rows > 0;
-}
-
-function getUserGames(int $userID): array
-{
-    $connection = MySQL::getConnection();
-
-    if ($connection->connect_errno !== 0) {
+    if ($connection->errno != 0) {
         return [];
     }
 
-    $selectGamesStatement = $connection->prepare("
-        SELECT 
-            g.AppID, 
-            g.Name, 
-            g.Tags, 
-            ug.Playtime 
-        FROM User_Games ug
-        INNER JOIN Games g ON ug.AppID = g.AppID
-        WHERE ug.UserID = ?
-    ");
+    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags FROM Games WHERE AppID > ? ORDER BY AppID LIMIT ?");
 
-    $selectGamesStatement->bind_param("i", $userID);
-    $selectGamesStatement->execute();
-    $result = $selectGamesStatement->get_result();
-    return $result->fetch_all(MYSQLI_ASSOC);
+    if (!$selectStatement) {
+        return [];
+    }
+
+    $selectStatement->bind_param("ii", $lastAppID, $limit);
+    $selectStatement->execute();
+    return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-function storeGameTags(int $appID, array $tags): bool
+function getInfoForGames($appIDs): array
+{
+    if (empty($appIDs)) {
+        return [];
+    }
+
+    $connection = MySQL::getConnection();
+    if ($connection->errno != 0) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($appIDs), '?'));
+    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags FROM Games WHERE AppID IN ($placeholders)");
+
+    if (!$selectStatement) {
+        return [];
+    }
+
+    $types = str_repeat('i', count($appIDs));
+    $selectStatement->bind_param($types, ...$appIDs);
+    $selectStatement->execute();
+    return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+function searchGames($name, $limit): array
 {
     $connection = MySQL::getConnection();
 
-    if ($connection->connect_errno !== 0) {
-        return false;
+    if ($connection->errno != 0) {
+        return [];
     }
 
-    $tagsJson = json_encode($tags);
+    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags FROM Games WHERE Name LIKE ? ORDER BY Name LIMIT ?");
 
-    $updateTagsStatement = $connection->prepare("UPDATE Games SET Tags = ? WHERE AppID = ?");
-    $updateTagsStatement->bind_param("si", $tagsJson, $appID);
-    $updateTagsStatement->execute();
+    if (!$selectStatement) {
+        return [];
+    }
 
-    return $updateTagsStatement->affected_rows > 0;
+    $like = '%' . $name . '%';
+    $selectStatement->bind_param("si", $like, $limit);
+    $selectStatement->execute();
+    return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-function requestProcessor($request)
+function requestProcessor($request): bool|array
 {
     echo var_dump($request) . PHP_EOL;
 
@@ -504,21 +476,20 @@ function requestProcessor($request)
         'logout' => logout($request['sessionid'], $request['userid']),
         'link' => linkSteamAccount($request['userid'], $request['steamid']),
         'unlink' => unlinkSteamAccount($request['userid']),
-        'savecatalog' => saveCatalog($request['userid'], $request['title'], $request['ratings'], $request['names']),
+        'savecatalog' => saveCatalog($request['userid'], $request['title'], $request['ratings']),
         'getusercatalogs' => getUserCatalogs($request['userid']),
         'getcatalog' => getCatalog($request['catalogid']),
         'getallusers' => getAllUsers(),
-        'getuserfollowers' => getuserFollowers($request['userid']),
+        'games' => getGames($request['lastappid'], $request['limit']),
+        'searchgames' => searchGames($request['name'], $request['limit']),
+        'getinfoforgames' => getInfoForGames($request['appids']),
+        'getuserfollowers' => getUserFollowers($request['userid']),
         'getuserfollowing' => getUserFollowing($request['userid']),
         'unfollowuser' => unfollowUser($request['userid'], $request['followid']),
         'followuser' => followUser($request['userid'], $request['followid']),
-        'storeusergame' => storeUserGame($request['userid'], $request['appid'], $request['name'], $request['playtime']),
-        'getusergames' => getUserGames($request['userid']),
-        'storegametags' => storeGameTags($request['appid'], $request['tags']),
         'addcatalogcomment' => addCatalogComment($request['catalogid'], $request['userid'], $request['comment']),
         'getcatalogcomments' => getCatalogComments($request['catalogid']),
         'getuser' => getUser($request['userid']),
         default => false,
     };
-
 }
