@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 23, 2025 at 03:18 AM
+-- Generation Time: Dec 15, 2025 at 08:14 PM
 -- Server version: 8.0.43-0ubuntu0.24.04.2
 -- PHP Version: 8.3.6
 
@@ -82,7 +82,7 @@ CREATE TABLE `Followers` (
 
 CREATE TABLE `Games` (
   `AppID` int NOT NULL,
-  `Name` varchar(255) NOT NULL,
+  `Name` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `Tags` json DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -112,17 +112,9 @@ CREATE TABLE `Users` (
   `Password` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- --------------------------------------------------------
-
 --
--- Table structure for table `User_Games`
+-- Indexes for dumped tables
 --
-
-CREATE TABLE `User_Games` (
-  `AppID` int NOT NULL,
-  `UserID` int NOT NULL,
-  `Playtime` int NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Indexes for table `Catalogs`
@@ -172,13 +164,6 @@ ALTER TABLE `Sessions`
 ALTER TABLE `Users`
   ADD PRIMARY KEY (`ID`),
   ADD UNIQUE KEY `SteamID` (`SteamID`);
-
---
--- Indexes for table `User_Games`
---
-ALTER TABLE `User_Games`
-  ADD PRIMARY KEY (`AppID`,`UserID`),
-  ADD KEY `UserGamesUserID` (`UserID`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -250,13 +235,6 @@ ALTER TABLE `Followers`
 --
 ALTER TABLE `Sessions`
   ADD CONSTRAINT `SessionUserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
-
---
--- Constraints for table `User_Games`
---
-ALTER TABLE `User_Games`
-  ADD CONSTRAINT `UserGamesAppID` FOREIGN KEY (`AppID`) REFERENCES `Games` (`AppID`) ON DELETE CASCADE,
-  ADD CONSTRAINT `UserGamesUserID` FOREIGN KEY (`UserID`) REFERENCES `Users` (`ID`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
