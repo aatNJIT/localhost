@@ -8,6 +8,26 @@ if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::ST
     exit();
 }
 
+if (isset($_GET['action'])) {
+    $action = $_GET['action'];
+    if ($action === 'search') {
+        $name = $_GET['name'] ?? '';
+        $client = RabbitClient::getConnection();
+        $games = (array)$client->send_request(['type' => RequestType::SEARCH_GAMES, 'name' => $name, 'limit' => PHP_INT_MAX]);
+        echo json_encode($games);
+        exit();
+    } elseif ($action === 'games') {
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $lastAppId = ($page - 1) * $limit;
+        $client = RabbitClient::getConnection();
+        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'lastappid' => $lastAppId, 'limit' => $limit]);
+        echo json_encode($games);
+        exit();
+    }
+    echo json_encode([]);
+    exit();
+}
 ?>
 
 <!DOCTYPE html>
@@ -68,121 +88,163 @@ if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::ST
         </nav>
     </article>
 
-    <article class="bordered-article" style="text-align: center">
+    <article class="bordered-article">
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <label for="gameSearch">
+                <input type="search" id="gameSearch" placeholder="Search Games..." style="margin-bottom: 1rem;">
+            </label>
+        </div>
 
-        <?php
-        $lastChecked = $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] ?? 0;
-        $shouldUpdate = time() - $lastChecked > 300;
+        <div id="loadingStatus" style="text-align: center; margin: 2rem 0;">
+            <span aria-busy="true">Loading games...</span>
+        </div>
 
-        if ($shouldUpdate) {
-            $request = ['type' => RequestType::GAMES, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
-            $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
+        <div id="tableContainer" style="display: none;">
+            <table role="grid" class="games-table">
+                <thead>
+                <tr>
+                    <th style="width: 150px;">Image</th>
+                    <th>Name</th>
+                    <th>Tags</th>
+                </tr>
+                </thead>
+                <tbody id="gamesTableBody">
+                </tbody>
+            </table>
 
-            if (is_array($response) && !empty($response)) {
-                $steamGames = $response[Identifiers::STEAM_GAMES] ?? [];
+            <div style="text-align: center; margin-top: 1rem;">
+                <button id="prevBtn" onclick="changePage(-1)" class="secondary">Previous</button>
+                <span id="pageInfo" style="margin: 0 1rem;"></span>
+                <button id="nextBtn" onclick="changePage(1)">Next</button>
+            </div>
+        </div>
 
-                foreach ($steamGames as $game) {
-                    $userID = $_SESSION[Identifiers::USER_ID];
-                    $appID = $game['appid'];
-                    $gameName = $game['name'];
-                    $playtime = $game['playtime_forever'];
+        <p id="noResults" style="text-align: center; display: none;">No games found.</p>
+    </article>
 
-                    $storeRequest = [
-                            'type' => RequestType::STORE_USER_GAME,
-                            Identifiers::USER_ID => $userID,
-                            'appid' => $appID,
-                            'name' => $gameName,
-                            'playtime' => $playtime,
-                    ];
+    <script>
+        let currentPage = 1;
+        let searchText = '';
+        let searchResults = [];
+        const gamesPerPage = 20;
 
-                    RabbitClient::getConnection()->send_request($storeRequest);
-                }
+        loadGames();
 
-                $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] = time();
+        let searchTimeout;
+        document.getElementById('gameSearch').addEventListener('input', function (e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchText = e.target.value;
+                currentPage = 1;
+                loadGames();
+            }, 500);
+        });
+
+        function changePage(direction) {
+            currentPage += direction;
+            if (searchText.length > 0) {
+                const start = (currentPage - 1) * gamesPerPage;
+                const end = start + gamesPerPage;
+                const pageGames = searchResults.slice(start, end);
+                appendGamesToTable(pageGames, true);
+            } else {
+                loadGames();
             }
         }
 
-        $request = ['type' => RequestType::GET_USER_GAMES, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
-        $response = RabbitClient::getConnection()->send_request($request);
+        async function loadGames() {
+            const loading = document.getElementById('loadingStatus');
+            const table = document.getElementById('tableContainer');
+            const noResults = document.getElementById('noResults');
 
-        if (is_array($response)) {
-            $steamGames = $response;
-        } else {
-            $steamGames = [];
+            loading.style.display = 'block';
+            loading.innerHTML = '<span aria-busy="true">Loading games...</span>';
+            table.style.display = 'none';
+            noResults.style.display = 'none';
+
+            try {
+                if (searchText.length > 0) {
+                    const url = `?action=search&name=${encodeURIComponent(searchText)}`;
+                    const response = await fetch(url);
+                    searchResults = await response.json();
+
+                    loading.style.display = 'none';
+
+                    if (searchResults.length === 0) {
+                        noResults.style.display = 'block';
+                        return;
+                    }
+
+                    const start = (currentPage - 1) * gamesPerPage;
+                    const end = start + gamesPerPage;
+                    const pageGames = searchResults.slice(start, end);
+                    appendGamesToTable(pageGames, true);
+                } else {
+                    const url = `?action=games&page=${currentPage}&limit=${gamesPerPage}`;
+                    const response = await fetch(url);
+                    const games = await response.json();
+
+                    loading.style.display = 'none';
+
+                    if (games.length === 0) {
+                        noResults.style.display = 'block';
+                        return;
+                    }
+
+                    appendGamesToTable(games, false);
+                }
+
+                table.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading games:', error);
+                loading.innerHTML = 'Error loading games';
+            }
         }
 
-        $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE] ?? [];
-        ?>
+        function appendGamesToTable(games, search) {
+            const tbody = document.getElementById('gamesTableBody');
+            tbody.innerHTML = '';
 
-        <img src="<?= $profile["avatar"] ?? "N/A" ?>"
-             alt="Steam Avatar"
-             style="border-radius: 4px; margin-bottom: 1rem;"
-        >
+            games.forEach(game => {
+                const tags = typeof game.Tags === 'string' ? JSON.parse(game.Tags) : game.Tags;
 
-        <p>
-            <strong class="steam-username"><?= $profile["personaname"] ?? "N/A" ?></strong>
-            <small style="color: var(--pico-muted-color);">(<?= round((time() - $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK]) / 60, 1) ?>
-                mins)</small><br>
-            <small style="color: var(--pico-muted-color);">Steam ID: <?= $profile["steamid"] ?? "N/A" ?></small>
-        </p>
-
-        <?php if (!empty($steamGames)): ?>
-
-            <?php
-            usort($steamGames, function ($a, $b) {
-                return $b['Playtime'] - $a['Playtime'];
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${game.AppID}/header.jpg"
+                             alt="${game.Name}">
+                    </td>
+                    <td><strong>${game.Name}</strong></td>
+                    <td>${mapTags(tags)}</td>
+                `;
+                tbody.appendChild(row);
             });
-            ?>
 
-            <label for="librarySearch">
-                <input type="search" id="librarySearch" placeholder="Search library..." style="margin-bottom: 1rem;">
-            </label>
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const pageInfo = document.getElementById('pageInfo');
 
-            <div style="max-height: 80vh; overflow-y: auto; padding-right: 1rem;">
-                <?php foreach ($steamGames as $game): ?>
-                    <?php
-                    $appid = $game['AppID'];
-                    $name = $game['Name'];
-                    $tags = json_decode($game['Tags']);
-                    $playtime = $game['Playtime'];
-                    ?>
+            if (search) {
+                const totalPages = Math.ceil(searchResults.length / gamesPerPage);
+                prevBtn.style.display = 'inline-block';
+                nextBtn.style.display = 'inline-block';
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage >= totalPages;
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${searchResults.length} results)`;
+            } else {
+                prevBtn.style.display = 'inline-block';
+                nextBtn.style.display = 'inline-block';
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = games.length < gamesPerPage;
+                pageInfo.textContent = `Page ${currentPage}`;
+            }
+        }
 
-                    <div class="game-div">
-                        <img src="<?= SteamUtils::getAppImage($appid) ?>" alt="<?= $name ?>"
-                             style="display: flex; max-width: 350px; border-radius: 2px; margin-right: 1rem;">
-
-                        <div style="flex: 1; text-align: left;">
-                            <strong style="font-size: 1.1rem;"><?= $name ?></strong><br>
-                            <small style="color: var(--pico-muted-color);">
-                                <?= SteamUtils::getGameTime($game) ?> hours played
-                            </small>
-
-                            <?php if (!empty($tags)): ?>
-                                <div class="game-tags">
-                                    <?php foreach ($tags as $tag): ?>
-                                        <span class="game-tags-background">
-                                            <?= htmlspecialchars($tag) ?>
-                                        </span>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php else: ?>
-            <p style="text-align: center;">No games found.</p>
-        <?php endif; ?>
+        function mapTags(tags) {
+            if (!tags || tags.length === 0) return '';
+            return tags.map(tag => `<span>${tag}</span>`).join('');
+        }
+    </script>
 </main>
 </body>
 </html>
-
-<script>
-    document.getElementById('librarySearch')?.addEventListener('input', function (e) {
-        const search = e.target.value.toLowerCase();
-        document.querySelectorAll('.game-div').forEach(item => {
-            const text = item.textContent.toLowerCase();
-            item.style.display = text.includes(search) ? 'flex' : 'none';
-        });
-    });
-</script>

@@ -1,5 +1,6 @@
 <?php
 session_start();
+ini_set('display_errors', 1);
 require_once('session.php');
 
 $errorMessage = '';
@@ -17,6 +18,28 @@ if (isset($_GET['error'])) {
 } else if (isset($_GET['success'])) {
     $successMessage = $_GET['success'];
 }
+
+if (isset($_GET['action'])) {
+    $action = $_GET['action'];
+    if ($action === 'search') {
+        $name = $_GET['name'] ?? '';
+        $client = RabbitClient::getConnection();
+        $games = (array)$client->send_request(['type' => RequestType::SEARCH_GAMES, 'name' => $name, 'limit' => PHP_INT_MAX]);
+        echo json_encode($games);
+        exit();
+    } elseif ($action === 'games') {
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $lastAppId = ($page - 1) * $limit;
+        $client = RabbitClient::getConnection();
+        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'lastappid' => $lastAppId, 'limit' => $limit]);
+        echo json_encode($games);
+        exit();
+    }
+    echo json_encode([]);
+    exit();
+}
+$profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
 ?>
 
 <!DOCTYPE html>
@@ -81,24 +104,14 @@ if (isset($_GET['error'])) {
             <?= $successMessage ?>
         </article>
     <?php elseif ($errorMessage): ?>
-        <article class="error">'
+        <article class="error">
             <?= $errorMessage ?>
-        </article>'
+        </article>
     <?php endif; ?>
 
     <div style="display: flex; gap: 10px; align-items: stretch; height: 100vh;">
         <article
                 style="flex: 1; max-width: 80%; border: 1px var(--pico-form-element-border-color) solid; padding: 1rem; display: flex; flex-direction: column;">
-            <?php
-            $request = ['type' => RequestType::GET_USER_GAMES, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
-            $games = RabbitClient::getConnection()->send_request($request);
-
-            if (!is_array($games)) {
-                $games = [];
-            }
-
-            $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
-            ?>
 
             <div style="text-align: center; flex-shrink: 0;">
                 <img src="<?= $profile["avatar"] ?? "N/A" ?>"
@@ -112,56 +125,24 @@ if (isset($_GET['error'])) {
                 </p>
             </div>
 
-            <?php if (!empty($games)): ?>
-                <?php
-                usort($games, function ($a, $b) {
-                    return $b['Playtime'] - $a['Playtime'];
-                });
-                ?>
+            <label for="gameSearch" style="flex-shrink: 0;">
+                <input type="search" id="gameSearch" placeholder="Search Games.." style="margin-bottom: 1rem;">
+            </label>
 
-                <label for="librarySearch" style="flex-shrink: 0;">
-                    <input type="search" id="librarySearch" placeholder="Search library..."
-                           style="margin-bottom: 1rem;">
-                </label>
+            <div id="loadingStatus" style="text-align: center; margin: 2rem 0; flex-shrink: 0;">
+                <span aria-busy="true">Loading games...</span>
+            </div>
 
-                <div style="flex: 1; overflow-y: auto; padding-right: 1rem; min-height: 0;">
-                    <?php foreach ($games as $game): ?>
-                        <?php
-                        $appid = $game['AppID'];
-                        $name = $game['Name'];
-                        $playtime = $game['Playtime'];
-                        $tags = json_decode($game['Tags'], true);
-                        ?>
-
-                        <div class="game-div" appid="<?= $appid ?>" onclick="selectGame(<?= $appid ?>, <?= htmlspecialchars(json_encode($name)) ?>)">
-
-                            <img src="<?= SteamUtils::getAppImage($appid) ?>"
-                                 alt="<?= $name ?>"
-                                 style="display: flex; max-width: 25vh; border-radius: 2px; margin-right: 1rem;">
-
-                            <div style="text-align: left;">
-                                <strong style="font-size: 1.1rem;"><?= $name ?></strong><br>
-                                <small style="color: var(--pico-muted-color);">
-                                    <?= round($playtime / 60, 1) ?> hours played
-                                </small>
-                            </div>
-                        </div>
-
-                        <?php if (!empty($tags)): ?>
-                            <div id="tags-<?= $appid ?>" class="game-tags" style="padding-bottom: 0.5rem; gap: 0.2rem">
-                                <?php foreach ($tags as $tag): ?>
-                                    <span class="game-tags-background">
-                                            <?= htmlspecialchars($tag) ?>
-                                    </span>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-
-                    <?php endforeach; ?>
+            <div id="gamesContainer" style="flex: 1; overflow-y: auto; padding-right: 1rem; min-height: 0; display: none;">
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <button id="prevBtn" onclick="changePage(-1)" class="secondary">Previous</button>
+                    <span id="pageInfo" style="margin: 0 1rem;"></span>
+                    <button id="nextBtn" onclick="changePage(1)">Next</button>
                 </div>
-            <?php else: ?>
-                <p style="text-align: left;">No games found.</p>
-            <?php endif; ?>
+                <div id="gamesList"></div>
+            </div>
+
+            <p id="noResults" style="text-align: center; display: none;">No games found.</p>
         </article>
 
         <article
@@ -195,15 +176,148 @@ if (isset($_GET['error'])) {
 </html>
 
 <script>
-    document.getElementById('librarySearch')?.addEventListener('input', function (e) {
-        const search = e.target.value.toLowerCase();
-        document.querySelectorAll('.game-div').forEach(item => {
-            const text = item.textContent.toLowerCase();
-            item.style.display = text.includes(search) ? 'flex' : 'none';
-        });
+    let currentPage = 1;
+    let searchText = '';
+    let searchResults = [];
+    const gamesPerPage = 20;
+    const selectedGames = new Map();
+
+    loadGames();
+
+    let searchTimeout;
+    document.getElementById('gameSearch').addEventListener('input', function (e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchText = e.target.value;
+            currentPage = 1;
+            loadGames();
+        }, 500);
     });
 
-    const selectedGames = new Map();
+    function changePage(direction) {
+        currentPage += direction;
+
+        if (searchText.length > 0) {
+            const start = (currentPage - 1) * gamesPerPage;
+            const end = start + gamesPerPage;
+            const pageGames = searchResults.slice(start, end);
+            document.getElementById('gamesContainer').style.display = 'block';
+            appendGames(pageGames, true);
+        } else {
+            loadGames();
+        }
+    }
+
+    async function loadGames() {
+        const loading = document.getElementById('loadingStatus');
+        const container = document.getElementById('gamesContainer');
+        const noResults = document.getElementById('noResults');
+
+        loading.style.display = 'block';
+        loading.innerHTML = '<span aria-busy="true">Loading games...</span>';
+        container.style.display = 'none';
+        noResults.style.display = 'none';
+
+        try {
+            if (searchText.length > 0) {
+                const url = `?action=search&name=${encodeURIComponent(searchText)}`;
+                const response = await fetch(url);
+                searchResults = await response.json();
+
+                loading.style.display = 'none';
+
+                if (searchResults.length === 0) {
+                    noResults.style.display = 'block';
+                    return;
+                }
+
+                const start = (currentPage - 1) * gamesPerPage;
+                const end = start + gamesPerPage;
+                const pageGames = searchResults.slice(start, end);
+                appendGames(pageGames, true);
+            } else {
+                const url = `?action=games&page=${currentPage}&limit=${gamesPerPage}`;
+                const response = await fetch(url);
+                const games = await response.json();
+
+                loading.style.display = 'none';
+
+                if (games.length === 0) {
+                    noResults.style.display = 'block';
+                    return;
+                }
+
+                appendGames(games, false);
+            }
+
+            container.style.display = 'block';
+        } catch (error) {
+            console.error('Error loading games:', error);
+            loading.innerHTML = 'Error loading games';
+        }
+    }
+
+    function appendGames(games, isSearch) {
+        const gamesList = document.getElementById('gamesList');
+        gamesList.innerHTML = '';
+
+        games.forEach(game => {
+            const appid = game.AppID;
+            const name = game.Name;
+            const tags = typeof game.Tags === 'string' ? JSON.parse(game.Tags) : game.Tags;
+
+            const isSelected = selectedGames.has(appid);
+
+            const gameDiv = document.createElement('div');
+            gameDiv.className = 'game-div';
+            gameDiv.setAttribute('appid', appid);
+            gameDiv.style.display = isSelected ? 'none' : 'flex';
+            gameDiv.onclick = function() { selectGame(appid, name); };
+
+            gameDiv.innerHTML = `
+                <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg"
+                     alt="${name}"
+                     style="display: flex; max-width: 25vh; border-radius: 2px; margin-right: 1rem;">
+                <div style="text-align: left;">
+                    <strong style="font-size: 1.1rem;">${name}</strong><br>
+                </div>
+            `;
+
+            gamesList.appendChild(gameDiv);
+
+            if (tags && tags.length > 0) {
+                const tagsDiv = document.createElement('div');
+                tagsDiv.id = `tags-${appid}`;
+                tagsDiv.className = 'game-tags';
+                tagsDiv.style.cssText = 'padding-bottom: 0.5rem; gap: 0.2rem';
+                tagsDiv.style.display = isSelected ? 'none' : 'block';
+
+                tags.forEach(tag => {
+                    const tagSpan = document.createElement('span');
+                    tagSpan.className = 'game-tags-background';
+                    tagSpan.textContent = tag;
+                    tagsDiv.appendChild(tagSpan);
+                });
+
+                gamesList.appendChild(tagsDiv);
+            }
+        });
+
+        const previousButton = document.getElementById('prevBtn');
+        const nextButton = document.getElementById('nextBtn');
+        const pageInfo = document.getElementById('pageInfo');
+
+        if (isSearch) {
+            const totalPages = Math.ceil(searchResults.length / gamesPerPage);
+            previousButton.disabled = currentPage === 1;
+            nextButton.disabled = currentPage >= totalPages;
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${searchResults.length} results)`;
+        } else {
+            previousButton.disabled = currentPage === 1;
+            nextButton.disabled = games.length < gamesPerPage;
+            pageInfo.textContent = `Page ${currentPage}`;
+        }
+    }
 
     function selectGame(appId, gameName) {
         if (selectedGames.has(appId)) return;

@@ -31,10 +31,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
                 $request = ['type' => RequestType::PROFILE, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
                 $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
                 $_SESSION[Identifiers::STEAM_PROFILE] = $response;
-                $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] = 0;
             }
-
-            $_SESSION[Identifiers::LAST_SESSION_CHECK] = time();
 
             header('Location: profile.php');
             exit();
@@ -80,9 +77,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             <?= $successMessage ?>
         </article>
     <?php elseif ($errorMessage): ?>
-        <article class="error">'
+        <article class="error">
             <?= $errorMessage ?>
-        </article>'
+        </article>
     <?php endif; ?>
 
     <form method="post">

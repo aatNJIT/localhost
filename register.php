@@ -41,7 +41,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 </head>
 
 <body>
-<main>
+<main class="main">
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>
@@ -64,9 +64,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             <?= $successMessage ?>
         </article>
     <?php elseif ($errorMessage): ?>
-        <article class="error">'
+        <article class="error">
             <?= $errorMessage ?>
-        </article>'
+        </article>
     <?php endif; ?>
 
     <form method="post">

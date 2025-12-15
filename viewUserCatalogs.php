@@ -72,7 +72,6 @@ if (!isset($_GET[Identifiers::USER_ID]) || !is_numeric($_GET[Identifiers::USER_I
     </article>
 
     <?php
-    // wasteful, but it'll do for now ( includes games, etc )
     $request = ['type' => RequestType::GET_USER_CATALOGS, Identifiers::USER_ID => $userID];
     $response = RabbitClient::getConnection()->send_request($request);
     ?>
@@ -82,7 +81,7 @@ if (!isset($_GET[Identifiers::USER_ID]) || !is_numeric($_GET[Identifiers::USER_I
             <article class="bordered-article">
                 <a href="viewCatalog.php?catalogid=<?= urlencode($catalog['CatalogID']) ?>"
                    style="cursor: pointer;">
-                    <strong><?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)</strong>
+                    <strong><?= $catalog['Title'] ?></strong>
                 </a>
             </article>
         <?php endforeach; ?>

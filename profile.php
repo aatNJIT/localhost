@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 require('steam/steamAuth.php');
 require_once('identifiers.php');
 require_once('session.php');

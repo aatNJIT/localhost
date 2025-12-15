@@ -19,7 +19,6 @@ if (isset($_GET['error'])) {
 } else if (isset($_GET['success'])) {
     $successMessage = $_GET['success'];
 }
-
 ?>
 
 <!DOCTYPE html>
@@ -108,8 +107,8 @@ if (isset($_GET['error'])) {
                     <?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)
                 </div>
 
-                <label for="librarySearch">
-                    <input type="search" id="librarySearch" placeholder="Search library..."
+                <label for="gameSearch">
+                    <input type="search" id="gameSearch" placeholder="Search Games..."
                            style="margin-bottom: 1rem;">
                 </label>
 
@@ -195,7 +194,7 @@ if (isset($_GET['error'])) {
 </html>
 
 <script>
-    document.getElementById('librarySearch')?.addEventListener('input', function (e) {
+    document.getElementById('gameSearch')?.addEventListener('input', function (e) {
         const search = e.target.value.toLowerCase();
         document.querySelectorAll('.game-div').forEach(item => {
             const text = item.textContent.toLowerCase();

@@ -11,23 +11,17 @@ function checkSession(): void
         exit();
     }
 
-    // 1 hour on listener
-    $lastSessionCheck = $_SESSION[Identifiers::LAST_SESSION_CHECK] ?? 0;
-    if (time() - $lastSessionCheck >= 300) {
-        $request = array(
-            'type' => RequestType::SESSION,
-            Identifiers::SESSION_ID => $_SESSION[Identifiers::SESSION_ID],
-            Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]
-        );
+    $request = array(
+        'type' => RequestType::SESSION,
+        Identifiers::SESSION_ID => $_SESSION[Identifiers::SESSION_ID],
+        Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]
+    );
 
-        $response = RabbitClient::getConnection()->send_request($request);
+    $response = RabbitClient::getConnection()->send_request($request);
 
-        if (!$response) {
-            header('Location: logout.php');
-            exit();
-        }
-
-        $_SESSION[Identifiers::LAST_SESSION_CHECK] = time();
+    if (!$response) {
+        header('Location: logout.php');
+        exit();
     }
 }
 
