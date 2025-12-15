@@ -6,16 +6,52 @@ require_once('rabbitMQLib.inc');
 
 $server = new rabbitMQServer("rabbitMQ.ini", "SteamAPI");
 echo PHP_EOL . "STARTED" . PHP_EOL;
+
+$env = parse_ini_file('.env');
+
+if (!$env || empty($env['STEAM_API_KEY'])) {
+    echo "Missing STEAM_API_KEY in .env file" . PHP_EOL;
+    exit();
+}
+
+$apiKey = $env['STEAM_API_KEY'];
 $server->process_requests('requestProcessor');
+
 echo PHP_EOL . "ENDED" . PHP_EOL;
 exit();
 
-function getUserGames(string $steamid): array
+function getAllGames($lastAppID = 0): array
 {
-    $env = parse_ini_file('../.env');
-    $apiKey = $env['STEAM_API_KEY'];
+    echo $lastAppID;
+    global $apiKey;
+    $url = "https://api.steampowered.com/IStoreService/GetAppList/v1/?key=$apiKey&include_games=true&include_dlc=false&include_hardware=false&include_videos=false&include_software=false&max_results=50000&last_appid=$lastAppID";
 
-    $url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/" . "?key=$apiKey&steamid=$steamid&include_appinfo=1&include_played_free_games=1";
+    $context = stream_context_create([
+            'http' => [
+                    'timeout' => 60,
+                    'user_agent' => 'Mozilla/5.0'
+            ]
+    ]);
+
+    $response = file_get_contents($url, false, $context);
+
+    if (!$response) {
+        return [];
+    }
+
+    $data = json_decode($response, true);
+
+    if (!isset($data['response']['apps'])) {
+        return [];
+    }
+
+    return $data['response']['apps'];
+}
+
+function getUserGames(string $steamID): array
+{
+    global $apiKey;
+    $url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=$apiKey&steamid=$steamID&include_appinfo=1&include_played_free_games=1";
 
     $response = file_get_contents($url);
     $content = json_decode($response, true);
@@ -25,22 +61,19 @@ function getUserGames(string $steamid): array
 
     if (isset($content['response']['games'])) {
         $games = $content['response']['games'];
-        $count = $content['response']['game_count'] ?? count($games);
+        $count = $content['response']['game_count'];
     }
 
     return [
             'games' => $games,
-            'count' => $count,
-            'gameupdatetime' => time(),
+            'count' => $count
     ];
 }
 
-function getUserProfile(string $steamid): array
+function getUserProfile(string $steamID): array
 {
-    $env = parse_ini_file('../.env');
-    $apiKey = $env['STEAM_API_KEY'];
-
-    $url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/" . "?key=$apiKey&steamids=$steamid";
+    global $apiKey;
+    $url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=$apiKey&steamids=$steamID";
 
     $response = file_get_contents($url);
     $content = json_decode($response, true);
@@ -73,27 +106,27 @@ function getUserProfile(string $steamid): array
     ];
 }
 
-function getGameTags(int $appid): array
+function getGameTags(int $appID): array
 {
-    $appDetails = "https://store.steampowered.com/api/appdetails?appids=$appid";
+    $appDetails = "https://store.steampowered.com/api/appdetails?appids=$appID";
     $context = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'Mozilla/5.0']]);
 
-    $response = @file_get_contents($appDetails, false, $context);
+    $response = file_get_contents($appDetails, false, $context);
     if (!$response) {
         return [];
     }
 
     $content = json_decode($response, true);
 
-    if (!isset($content[$appid]['success']) || $content[$appid]['success'] !== true) {
+    if (!isset($content[$appID]['success']) || $content[$appID]['success'] !== true) {
         return [];
     }
 
-    if (!isset($content[$appid]['data'])) {
+    if (!isset($content[$appID]['data'])) {
         return [];
     }
 
-    $data = $content[$appid]['data'];
+    $data = $content[$appID]['data'];
     $genres = $data['genres'] ?? [];
     $categories = $data['categories'] ?? [];
 
@@ -122,12 +155,14 @@ function requestProcessor($request)
 
     $type = $request['type'];
 
-    if ($type == 'games') {
-        return getUserGames($request['steamid']);
-    } else if ($type == 'profile') {
+    if ($type == 'profile') {
         return getuserProfile($request['steamid']);
     } else if ($type == 'tags') {
         return getGameTags($request['appid']);
+    } else if ($type == 'getallgames') {
+        return getAllGames($request['lastappid']);
+    } else if ($type == 'getusergames') {
+        return getUserGames($request['steamid']);
     }
 
     return false;
