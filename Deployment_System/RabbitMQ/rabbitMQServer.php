@@ -121,7 +121,7 @@ function getLastSuccessfulBundle($bundleType, $environment): array
     }
 
     if ($environment === 'qa') {
-        $lastSuccessfulBundleStatement = $connection->prepare("SELECT * FROM Bundles WHERE Type = ? AND Status IN ('NEW', 'DEPLOYED_QA') ORDER BY ID DESC LIMIT 1");
+        $lastSuccessfulBundleStatement = $connection->prepare("SELECT * FROM Bundles WHERE Type = ? AND Status IN ('NEW', 'DEPLOYED_QA', 'PASSED') ORDER BY ID DESC LIMIT 1 OFFSET 1");
     } else {
         $lastSuccessfulBundleStatement = $connection->prepare("SELECT * FROM Bundles WHERE Type = ? AND Status IN ('PASSED', 'DEPLOYED_PROD') ORDER BY ID DESC LIMIT 1 OFFSET 1");
     }
