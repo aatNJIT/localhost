@@ -1,8 +1,6 @@
 <?php
-require_once 'logger.php';
-log_message("profile.php page loaded. Method=".$_SERVER['REQUEST_METHOD']);
-
 session_start();
+
 require('steam/steamAuth.php');
 require_once('identifiers.php');
 require_once('session.php');
@@ -34,7 +32,7 @@ require_once('session.php');
                     <a href="users.php"> <i class="fa-solid fa-users"></i> Users</a>
                 </li>
 
-                <?php if (isset($_SESSION[Identifiers::STEAM_ID])): log_message("Steam ID found for user " . $_SESSION[Identifiers::USERNAME]); ?>
+                <?php if (isset($_SESSION[Identifiers::STEAM_ID])): ?>
                     <li>
                         <a href="browse.php">
                             <i class="fa-solid fa-gamepad"></i> Browse
@@ -69,23 +67,16 @@ require_once('session.php');
 
     <article class="bordered-article" style="text-align: center">
 
-        <?php if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::STEAM_PROFILE])):
-        log_message("User does not have a linked Steam account.");
-        ?>
+        <?php if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::STEAM_PROFILE])): ?>
             <a href='?login' role="button" class="primary">
                 <i class="fa-solid fa-link"></i> Link Steam Account
             </a>
-        <?php else:
-        $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
-        $steam_username = $profile['personaname'];
-        $steamid = $_SESSION[Identifiers::STEAM_ID];
-        log_message("User has a linked Steam account under Username $steam_username and Steam ID $steamid.");
-        ?>
+        <?php else: ?>
             <?php
             $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
             ?>
 
-            <?php if (!empty($profile)):?>
+            <?php if (!empty($profile)): ?>
                 <img src="<?= $profile["avatar"] ?? "N/A" ?>"
                      alt="Steam Avatar"
                      style="border-radius: 4px; margin-bottom: 1rem;"
