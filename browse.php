@@ -19,9 +19,9 @@ if (isset($_GET['action'])) {
     } elseif ($action === 'games') {
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
-        $lastAppId = ($page - 1) * $limit;
+        $offset = ($page - 1) * $limit;
         $client = RabbitClient::getConnection();
-        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'lastappid' => $lastAppId, 'limit' => $limit]);
+        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'offset' => $offset, 'limit' => $limit]);
         echo json_encode($games);
         exit();
     }
@@ -105,7 +105,8 @@ if (isset($_GET['action'])) {
                 <tr>
                     <th style="width: 150px;">Image</th>
                     <th>Name</th>
-                    <th>Tags</th>
+                    <th>Description</th>
+                    <th style="width: 250px;">Tags</th>
                 </tr>
                 </thead>
                 <tbody id="gamesTableBody">
@@ -136,20 +137,14 @@ if (isset($_GET['action'])) {
             searchTimeout = setTimeout(() => {
                 searchText = e.target.value;
                 currentPage = 1;
+                searchResults = [];
                 loadGames();
             }, 500);
         });
 
         function changePage(direction) {
             currentPage += direction;
-            if (searchText.length > 0) {
-                const start = (currentPage - 1) * gamesPerPage;
-                const end = start + gamesPerPage;
-                const pageGames = searchResults.slice(start, end);
-                appendGamesToTable(pageGames, true);
-            } else {
-                loadGames();
-            }
+            loadGames();
         }
 
         async function loadGames() {
@@ -164,9 +159,11 @@ if (isset($_GET['action'])) {
 
             try {
                 if (searchText.length > 0) {
-                    const url = `?action=search&name=${encodeURIComponent(searchText)}`;
-                    const response = await fetch(url);
-                    searchResults = await response.json();
+                    if (searchResults.length === 0) {
+                        const url = `?action=search&name=${encodeURIComponent(searchText)}`;
+                        const response = await fetch(url);
+                        searchResults = await response.json();
+                    }
 
                     loading.style.display = 'none';
 
@@ -180,6 +177,7 @@ if (isset($_GET['action'])) {
                     const pageGames = searchResults.slice(start, end);
                     appendGamesToTable(pageGames, true);
                 } else {
+                    searchResults = [];
                     const url = `?action=games&page=${currentPage}&limit=${gamesPerPage}`;
                     const response = await fetch(url);
                     const games = await response.json();
@@ -201,21 +199,25 @@ if (isset($_GET['action'])) {
             }
         }
 
-        function appendGamesToTable(games, search) {
+        function appendGamesToTable(games, isSearch) {
             const tbody = document.getElementById('gamesTableBody');
             tbody.innerHTML = '';
 
             games.forEach(game => {
+                const appid = game.AppID;
+                const name = game.Name;
                 const tags = typeof game.Tags === 'string' ? JSON.parse(game.Tags) : game.Tags;
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
-                        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${game.AppID}/header.jpg"
-                             alt="${game.Name}">
+                       <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg"
+                     alt="${name}"
+                     style="display: flex; max-width: 25vh; border-radius: 2px; margin-right: 1rem;">
                     </td>
                     <td><strong>${game.Name}</strong></td>
-                    <td>${mapTags(tags)}</td>
+                    <td>${game.Description || 'N/A'}</td>
+                    <td>${mapTags(tags) || 'N/A'}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -224,16 +226,12 @@ if (isset($_GET['action'])) {
             const nextBtn = document.getElementById('nextBtn');
             const pageInfo = document.getElementById('pageInfo');
 
-            if (search) {
+            if (isSearch) {
                 const totalPages = Math.ceil(searchResults.length / gamesPerPage);
-                prevBtn.style.display = 'inline-block';
-                nextBtn.style.display = 'inline-block';
                 prevBtn.disabled = currentPage === 1;
                 nextBtn.disabled = currentPage >= totalPages;
                 pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${searchResults.length} results)`;
             } else {
-                prevBtn.style.display = 'inline-block';
-                nextBtn.style.display = 'inline-block';
                 prevBtn.disabled = currentPage === 1;
                 nextBtn.disabled = games.length < gamesPerPage;
                 pageInfo.textContent = `Page ${currentPage}`;
@@ -242,7 +240,19 @@ if (isset($_GET['action'])) {
 
         function mapTags(tags) {
             if (!tags || tags.length === 0) return '';
-            return tags.map(tag => `<span>${tag}</span>`).join('');
+            const tagsDiv = document.createElement('div');
+
+            tagsDiv.className = 'game-tags';
+            tagsDiv.style.cssText = 'display: flex; flex-wrap: wrap; gap: 0.1rem;';
+
+            tags.forEach(tag => {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'game-tags-background';
+                tagSpan.textContent = tag;
+                tagsDiv.appendChild(tagSpan);
+            });
+
+            return tagsDiv.outerHTML;
         }
     </script>
 </main>

@@ -30,9 +30,9 @@ if (isset($_GET['action'])) {
     } elseif ($action === 'games') {
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
-        $lastAppId = ($page - 1) * $limit;
+        $offset = ($page - 1) * $limit;
         $client = RabbitClient::getConnection();
-        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'lastappid' => $lastAppId, 'limit' => $limit]);
+        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'offset' => $offset, 'limit' => $limit]);
         echo json_encode($games);
         exit();
     }
@@ -190,22 +190,14 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
         searchTimeout = setTimeout(() => {
             searchText = e.target.value;
             currentPage = 1;
+            searchResults = [];
             loadGames();
         }, 500);
     });
 
     function changePage(direction) {
         currentPage += direction;
-
-        if (searchText.length > 0) {
-            const start = (currentPage - 1) * gamesPerPage;
-            const end = start + gamesPerPage;
-            const pageGames = searchResults.slice(start, end);
-            document.getElementById('gamesContainer').style.display = 'block';
-            appendGames(pageGames, true);
-        } else {
-            loadGames();
-        }
+        loadGames();
     }
 
     async function loadGames() {
@@ -220,9 +212,11 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
 
         try {
             if (searchText.length > 0) {
-                const url = `?action=search&name=${encodeURIComponent(searchText)}`;
-                const response = await fetch(url);
-                searchResults = await response.json();
+                if (searchResults.length === 0) {
+                    const url = `?action=search&name=${encodeURIComponent(searchText)}`;
+                    const response = await fetch(url);
+                    searchResults = await response.json();
+                }
 
                 loading.style.display = 'none';
 
@@ -236,6 +230,7 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
                 const pageGames = searchResults.slice(start, end);
                 appendGames(pageGames, true);
             } else {
+                searchResults = [];
                 const url = `?action=games&page=${currentPage}&limit=${gamesPerPage}`;
                 const response = await fetch(url);
                 const games = await response.json();
@@ -289,7 +284,7 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
                 const tagsDiv = document.createElement('div');
                 tagsDiv.id = `tags-${appid}`;
                 tagsDiv.className = 'game-tags';
-                tagsDiv.style.cssText = 'padding-bottom: 0.5rem; gap: 0.2rem';
+                tagsDiv.style.cssText = 'padding-bottom: 0.5rem; gap: 0.25rem';
                 tagsDiv.style.display = isSelected ? 'none' : 'block';
 
                 tags.forEach(tag => {
