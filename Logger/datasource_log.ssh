@@ -1,0 +1,12 @@
+#!/bin/bash
+
+USER="${SUDO_USER:-$(whoami)}"
+sudo cp logger.php "/var/Datasource/RabbitMQ/logger.php"
+sudo mkdir -p "/var/log/it490"
+sudo touch "/var/log/it490/datasource.log"
+sudo chown -R "$USER:$USER" "/var/log/it490"
+sudo chmod -R 755 "/var/log/it490"
+
+echo "/var/log/it490/datasource.log"
+
+~                                          
