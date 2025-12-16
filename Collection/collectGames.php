@@ -15,8 +15,7 @@ if ($connection->connect_errno != 0) {
 $steamApi = new rabbitMQClient("rabbitMQ.ini", "SteamAPI");
 
 $lastAppID = 0;
-$emptyTags = json_encode([]);
-$insertStatement = $connection->prepare("INSERT IGNORE INTO Games (AppID, Name, Tags) VALUES (?, ?, ?)");
+$insertStatement = $connection->prepare("INSERT IGNORE INTO Games (AppID, Name) VALUES (?, ?)");
 
 if (!$insertStatement) {
     echo "Invalid SQL statement" . PHP_EOL;
@@ -47,7 +46,7 @@ do {
         $appID = $app['appid'];
         $name = $app['name'];
 
-        $insertStatement->bind_param("iss", $appID, $name, $emptyTags);
+        $insertStatement->bind_param("is", $appID, $name);
         if ($insertStatement->execute()) {
             if ($insertStatement->affected_rows > 0) {
                 $inserted++;
