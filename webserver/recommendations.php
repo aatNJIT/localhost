@@ -10,124 +10,96 @@ if (!isset($_SESSION[Identifiers::STEAM_ID])) {
     exit();
 }
 
-// Get user's Steam games
 $gamesRequest = ['type' => RequestType::GAMES, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
 $gamesResponse = RabbitClient::getConnection("SteamAPI")->send_request($gamesRequest);
 $userGames = $gamesResponse['games'] ?? [];
 
 
-$catalogRequest = ['type' => RequestType::GET_USER_CATALOGS, Identifiers::USER_ID => $_SESSION[Identifiers::USER_ID]];
-$catalogResponse = RabbitClient::getConnection()->send_request($catalogRequest);
-
-// Build a map of game ratings from user's catalogs
-$userRatings = [];
-if (is_array($catalogResponse) && !empty($catalogResponse)) {
-    foreach ($catalogResponse as $catalog) {
-        if (!empty($catalog['games'])) {
-            foreach ($catalog['games'] as $game) {
-                $appid = $game['AppID'];
-                $rating = $game['Rating'];
-                
-                if (!isset($userRatings[$appid]) || $rating > $userRatings[$appid]) {
-                    $userRatings[$appid] = $rating;
-                }
-            }
-        }
-    }
-}
-
-// Get top 5 most played games (by playtime)
-$topPlayedGames = $userGames;
-usort($topPlayedGames, function($a, $b) {
-    return $b['playtime_forever'] - $a['playtime_forever'];
-});
-$topPlayedGames = array_slice($topPlayedGames, 0, 5);
-
-// Get top 5 highest rated games
-$ratedGames = [];
-foreach ($userGames as $game) {
-    if (isset($userRatings[$game['appid']])) {
-        $game['user_rating'] = $userRatings[$game['appid']];
-        $ratedGames[] = $game;
-    }
-}
-usort($ratedGames, function($a, $b) {
-    return $b['user_rating'] - $a['user_rating'];
-});
-$topRatedGames = array_slice($ratedGames, 0, 5);
-
-
-require 'steam/steamConfig.php';
-
-// Get tags/genres for top games to find similar games
-$recommendedGames = [];
-$processedAppIds = [];
-
-
-function getSimilarGames($appId, &$recommendations, &$processed): void
-{
-    
-    $detailsUrl = @file_get_contents("https://store.steampowered.com/api/appdetails?appids=$appId");
-    if (!$detailsUrl) return;
-    
-    $details = json_decode($detailsUrl, true);
-    if (!isset($details[$appId]['success']) || !$details[$appId]['success']) return;
-    
-    $gameData = $details[$appId]['data'];
-    $tags = [];
-    
-    
-    if (isset($gameData['genres'])) {
-        foreach ($gameData['genres'] as $genre) {
-            $tags[] = $genre['description'];
-        }
-    }
-    
-    
-    if (!empty($tags)) {
-        $recommendations[$appId] = [
-            'name' => $gameData['name'] ?? 'Unknown',
-            'appid' => $appId,
-            'tags' => $tags,
-            'short_description' => $gameData['short_description'] ?? '',
-            'header_image' => $gameData['header_image'] ?? ''
-        ];
-        $processed[] = $appId;
-    }
-    
-    
-    usleep(100000); // 0.1 second
-}
-
-
-$sourceGames = array_merge($topPlayedGames, $topRatedGames);
-$sourceGames = array_unique($sourceGames, SORT_REGULAR);
-$sourceGames = array_slice($sourceGames, 0, 5); 
-
-foreach ($sourceGames as $game) {
-    getSimilarGames($game['appid'], $recommendedGames, $processedAppIds);
-}
-
-// Get all user's owned game IDs for filtering
 $ownedGameIds = array_column($userGames, 'appid');
 
-// Fetch featured games from Steam as additional recommendations
-$featuredUrl = @file_get_contents("https://store.steampowered.com/api/featured/");
-$featuredData = $featuredUrl ? json_decode($featuredUrl, true) : null;
+
+$recentGames = $userGames;
+usort($recentGames, function($a, $b) {
+    $a2weeks = $a['playtime_2weeks'] ?? 0;
+    $b2weeks = $b['playtime_2weeks'] ?? 0;
+    if ($a2weeks != $b2weeks) {
+        return $b2weeks - $a2weeks;
+    }
+    return $b['playtime_forever'] - $a['playtime_forever'];
+});
+$recentGames = array_slice($recentGames, 0, 10);
+
+
+$topPlayedGames = array_slice($recentGames, 0, 5);
+
+
+$tagCounts = [];
+$gameTagsMap = [];
+
+foreach ($recentGames as $game) {
+    $appId = $game['appid'];
+    $steamSpyUrl = @file_get_contents("https://steamspy.com/api.php?request=appdetails&appid=$appId");
+    if (!$steamSpyUrl) continue;
+    
+    $steamSpyData = json_decode($steamSpyUrl, true);
+    if (!$steamSpyData || empty($steamSpyData['tags'])) continue;
+    
+    
+    $tags = array_keys($steamSpyData['tags']);
+    $gameTagsMap[$appId] = array_slice($tags, 0, 5); 
+    
+    
+    $weight = max(1, ($game['playtime_2weeks'] ?? 0) + ($game['playtime_forever'] / 60));
+    foreach ($tags as $tag) {
+        if (!isset($tagCounts[$tag])) {
+            $tagCounts[$tag] = 0;
+        }
+        $tagCounts[$tag] += $weight;
+    }
+    
+    usleep(200000); 
+}
+
+
+arsort($tagCounts);
+$topTags = array_slice(array_keys($tagCounts), 0, 5);
+
+
 $suggestedGames = [];
 
-if ($featuredData && isset($featuredData['featured_win'])) {
-    foreach (array_slice($featuredData['featured_win'], 0, 10) as $featured) {
-        $appId = $featured['id'];
-        // Only suggest games user doesn't own
-        if (!in_array($appId, $ownedGameIds)) {
-            $suggestedGames[] = [
-                'appid' => $appId,
-                'name' => $featured['name'],
-                'header_image' => $featured['header_image'] ?? SteamUtils::getAppImage($appId),
-                'discount_percent' => $featured['discount_percent'] ?? 0,
-                'final_price' => isset($featured['final_price']) ? ($featured['final_price'] / 100) : 0
-            ];
+if (!empty($topTags)) {
+    
+    $topTag = urlencode($topTags[0]);
+    $tagGamesUrl = @file_get_contents("https://steamspy.com/api.php?request=tag&tag=$topTag");
+    
+    if ($tagGamesUrl) {
+        $tagGames = json_decode($tagGamesUrl, true);
+        
+        if (is_array($tagGames)) {
+            
+            uasort($tagGames, function($a, $b) {
+                $scoreA = ($a['positive'] ?? 0) - ($a['negative'] ?? 0);
+                $scoreB = ($b['positive'] ?? 0) - ($b['negative'] ?? 0);
+                return $scoreB - $scoreA;
+            });
+            
+            $count = 0;
+            foreach ($tagGames as $appId => $gameData) {
+                
+                if (in_array((int)$appId, $ownedGameIds)) continue;
+                
+                $suggestedGames[] = [
+                    'appid' => $appId,
+                    'name' => $gameData['name'] ?? 'Unknown',
+                    'header_image' => SteamUtils::getAppImage($appId),
+                    'positive' => $gameData['positive'] ?? 0,
+                    'negative' => $gameData['negative'] ?? 0,
+                    'tags' => $topTags
+                ];
+                
+                $count++;
+                if ($count >= 10) break;
+            }
         }
     }
 }
@@ -203,10 +175,12 @@ if ($featuredData && isset($featuredData['featured_win'])) {
                         <small style="color: var(--pico-muted-color);">
                             <i class="fa-solid fa-clock"></i> 
                             <?= SteamUtils::getGameTime($game) ?> hours played
-                            <?php if (isset($userRatings[$game['appid']])): ?>
-                                | <i class="fa-solid fa-star"></i> Rating: <?= $userRatings[$game['appid']] ?>/10
-                            <?php endif; ?>
                         </small>
+                        <?php if (isset($gameTagsMap[$game['appid']])): ?>
+                            <br><small style="color: var(--pico-primary);">
+                                <i class="fa-solid fa-tags"></i> <?= htmlspecialchars(implode(', ', array_slice($gameTagsMap[$game['appid']], 0, 3))) ?>
+                            </small>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -217,35 +191,34 @@ if ($featuredData && isset($featuredData['featured_win'])) {
         <?php endif; ?>
     </article>
 
-    <!-- Your Top Rated Games -->
-    <?php if (!empty($topRatedGames)): ?>
+    <!-- Your Top Tags -->
+    <?php if (!empty($topTags)): ?>
     <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
-        <h3><i class="fa-solid fa-star"></i> Your Highest Rated Games</h3>
-        <?php foreach ($topRatedGames as $game): ?>
-            <div style="display: flex; align-items: center; padding: 0.5rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px;">
-                <img src="<?= SteamUtils::getAppImage($game['appid']) ?>" 
-                     alt="<?= htmlspecialchars($game['name']) ?>" 
-                     style="max-width: 120px; border-radius: 2px; margin-right: 1rem;">
-                <div style="text-align: left;">
-                    <strong><?= htmlspecialchars($game['name']) ?></strong><br>
-                    <small style="color: var(--pico-muted-color);">
-                        <i class="fa-solid fa-star"></i> Rating: <?= $game['user_rating'] ?>/10
-                        | <i class="fa-solid fa-clock"></i> <?= SteamUtils::getGameTime($game) ?> hours played
-                    </small>
-                </div>
-            </div>
-        <?php endforeach; ?>
+        <h3><i class="fa-solid fa-tags"></i> Your Favorite Genres</h3>
+        <p style="color: var(--pico-muted-color); font-size: 0.9rem;">
+            Based on your most played games
+        </p>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem;">
+            <?php foreach ($topTags as $tag): ?>
+                <span style="background: var(--pico-primary-background); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">
+                    <?= htmlspecialchars($tag) ?>
+                </span>
+            <?php endforeach; ?>
+        </div>
     </article>
     <?php endif; ?>
 
-    <!-- Featured/Suggested Games -->
+    <!-- Recommended Games Based on Tags -->
     <?php if (!empty($suggestedGames)): ?>
     <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
-        <h3><i class="fa-solid fa-lightbulb"></i> Popular Games You Don't Own</h3>
+        <h3><i class="fa-solid fa-lightbulb"></i> Recommended For You</h3>
         <p style="color: var(--pico-muted-color); font-size: 0.9rem;">
-            Trending games on Steam
+            Games similar to what you play most
+            <?php if (!empty($topTags)): ?>
+                (<?= htmlspecialchars($topTags[0]) ?>)
+            <?php endif; ?>
         </p>
-        <?php foreach (array_slice($suggestedGames, 0, 6) as $game): ?>
+        <?php foreach ($suggestedGames as $game): ?>
             <div style="display: flex; align-items: center; padding: 0.5rem; margin-bottom: 0.4rem; border: 1px solid var(--pico-form-element-border-color); border-radius: 4px;">
                 <img src="<?= htmlspecialchars($game['header_image']) ?>" 
                      alt="<?= htmlspecialchars($game['name']) ?>"
@@ -253,29 +226,34 @@ if ($featuredData && isset($featuredData['featured_win'])) {
                 <div style="text-align: left;">
                     <strong><?= htmlspecialchars($game['name']) ?></strong><br>
                     <small style="color: var(--pico-muted-color);">
-                        <?php if ($game['discount_percent'] > 0): ?>
-                            <span style="color: #4c9f38; font-weight: bold;">
-                                -<?= $game['discount_percent'] ?>% | $<?= number_format($game['final_price'], 2) ?>
-                            </span>
-                        <?php elseif ($game['final_price'] > 0): ?>
-                            $<?= number_format($game['final_price'], 2) ?>
-                        <?php else: ?>
-                            Free to Play
+                        <?php 
+                        $total = $game['positive'] + $game['negative'];
+                        $rating = $total > 0 ? round(($game['positive'] / $total) * 100) : 0;
+                        ?>
+                        <?php if ($total > 0): ?>
+                            <i class="fa-solid fa-thumbs-up"></i> <?= $rating ?>% positive (<?= number_format($total) ?> reviews)
                         <?php endif; ?>
                     </small>
                 </div>
             </div>
         <?php endforeach; ?>
     </article>
+    <?php else: ?>
+    <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
+        <h3><i class="fa-solid fa-lightbulb"></i> Recommended For You</h3>
+        <p style="color: var(--pico-muted-color);">
+            Play more games to get personalized recommendations based on your favorite genres!
+        </p>
+    </article>
     <?php endif; ?>
 
     <!-- Quick Actions -->
     <article style="margin-top: 1rem; text-align: center; border: 1px var(--pico-form-element-border-color) solid">
         <p style="color: var(--pico-muted-color);">
-            Recommendations are based on your most played games and highest rated titles.
+            Recommendations are based on the genres/tags of your most played games.
         </p>
-        <a href="createCatalog.php" role="button" class="primary">
-            <i class="fa-solid fa-star"></i> Rate More Games
+        <a href="profile.php" role="button" class="primary">
+            <i class="fa-solid fa-gamepad"></i> View Your Library
         </a>
     </article>
 
