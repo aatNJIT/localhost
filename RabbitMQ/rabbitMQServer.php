@@ -396,7 +396,7 @@ function getCatalogComments(int $catalogID): array
     return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-function getGames($lastAppID, $limit): array
+function getGames($limit, $offset): array
 {
     $connection = MySQL::getConnection();
 
@@ -404,13 +404,13 @@ function getGames($lastAppID, $limit): array
         return [];
     }
 
-    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags FROM Games WHERE AppID > ? ORDER BY AppID LIMIT ?");
+    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags, Description FROM Games ORDER BY AppID LIMIT ? OFFSET ?");
 
     if (!$selectStatement) {
         return [];
     }
 
-    $selectStatement->bind_param("ii", $lastAppID, $limit);
+    $selectStatement->bind_param("ii", $limit, $offset);
     $selectStatement->execute();
     return $selectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
 }
@@ -427,7 +427,7 @@ function getInfoForGames($appIDs): array
     }
 
     $placeholders = implode(',', array_fill(0, count($appIDs), '?'));
-    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags FROM Games WHERE AppID IN ($placeholders)");
+    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags, Description FROM Games WHERE AppID IN ($placeholders)");
 
     if (!$selectStatement) {
         return [];
@@ -447,7 +447,7 @@ function searchGames($name, $limit): array
         return [];
     }
 
-    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags FROM Games WHERE Name LIKE ? ORDER BY Name LIMIT ?");
+    $selectStatement = $connection->prepare("SELECT AppID, Name, Tags, Description FROM Games WHERE Name LIKE ? ORDER BY Name LIMIT ?");
 
     if (!$selectStatement) {
         return [];
@@ -480,7 +480,7 @@ function requestProcessor($request): bool|array
         'getusercatalogs' => getUserCatalogs($request['userid']),
         'getcatalog' => getCatalog($request['catalogid']),
         'getallusers' => getAllUsers(),
-        'games' => getGames($request['lastappid'], $request['limit']),
+        'games' => getGames($request['limit'], $request['offset']),
         'searchgames' => searchGames($request['name'], $request['limit']),
         'getinfoforgames' => getInfoForGames($request['appids']),
         'getuserfollowers' => getUserFollowers($request['userid']),
