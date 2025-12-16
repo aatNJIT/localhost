@@ -1,6 +1,10 @@
 <?php
+require_once 'logger.php';
+
 $errorMessage = '';
 $successMessage = '';
+
+log_message("register.php page loaded. Method=".$_SERVER['REQUEST_METHOD']);
 
 if (isset($_POST['username']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
@@ -11,6 +15,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
     if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
         $errorMessage = 'Invalid username or password';
+        log_message("User registration failed due to invalid input.");
     } else {
         $request = array();
         $request['type'] = RequestType::REGISTER;
@@ -18,12 +23,15 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         $request[Identifiers::PASSWORD] = password_hash($password, PASSWORD_BCRYPT);
 
         $client = RabbitClient::getConnection();
+        log_message("Attempting to register user $username.");
         $response = $client->send_request($request);
 
         if ($response) {
             $successMessage = 'Registered Successfully';
+            log_message("User $username registered successfully.");
         } else {
             $errorMessage = 'Failed To Register';
+            log_message("User $username failed to register.");
         }
     }
 }
@@ -41,7 +49,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 </head>
 
 <body>
-<main class="main">
+<main>
     <article style="border: 1px var(--pico-form-element-border-color) solid">
         <nav style="justify-content: center">
             <ul>
@@ -64,9 +72,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             <?= $successMessage ?>
         </article>
     <?php elseif ($errorMessage): ?>
-        <article class="error">
+        <article class="error">'
             <?= $errorMessage ?>
-        </article>
+        </article>'
     <?php endif; ?>
 
     <form method="post">

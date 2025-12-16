@@ -1,7 +1,11 @@
 <?php
+require_once 'logger.php';
+
 session_start();
 $errorMessage = '';
 $successMessage = '';
+
+log_message("login.php page loaded. Method=".$_SERVER['REQUEST_METHOD']);
 
 if (isset($_POST['username']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
@@ -9,34 +13,44 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
     $username = $_POST["username"];
     $password = $_POST["password"];
+    log_message("Attempting login for user $username.");
 
     if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
         $errorMessage = 'Invalid username or password';
+        log_message("Login failed due to invalid input or wrong credentials.");
+
     } else {
         $request = array();
         $request['type'] = RequestType::LOGIN;
         $request[Identifiers::USERNAME] = $username;
         $request[Identifiers::PASSWORD] = $password;
         $response = RabbitClient::getConnection()->send_request($request);
+        
 
         if (is_array($response) && isset($response[Identifiers::USER_ID]) && isset($response[Identifiers::SESSION_ID])) {
             session_regenerate_id();
-
             $_SESSION[Identifiers::USER_ID] = $response[Identifiers::USER_ID];
             $_SESSION[Identifiers::SESSION_ID] = $response[Identifiers::SESSION_ID];
             $_SESSION[Identifiers::USERNAME] = $response[Identifiers::USERNAME];
             $_SESSION[Identifiers::STEAM_ID] = $response[Identifiers::STEAM_ID];
-
+            
             if (isset($response[Identifiers::STEAM_ID])) {
                 $request = ['type' => RequestType::PROFILE, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
                 $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
+                log_message("Sent request to SteamAPI for profile data of Steam ID " . $_SESSION[Identifiers::STEAM_ID] . ".");
                 $_SESSION[Identifiers::STEAM_PROFILE] = $response;
+                $_SESSION[Identifiers::LAST_GAME_SESSION_CHECK] = 0;
+                
             }
 
+            $_SESSION[Identifiers::LAST_SESSION_CHECK] = time();
+            log_message("User $username logged in successfully.");
+            log_message("Redirecting to profile.php page.");
             header('Location: profile.php');
             exit();
         } else {
             $errorMessage = 'Invalid Username or Password';
+            log_message("Login failed for user $username.");
         }
     }
 }
@@ -77,9 +91,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             <?= $successMessage ?>
         </article>
     <?php elseif ($errorMessage): ?>
-        <article class="error">
+        <article class="error">'
             <?= $errorMessage ?>
-        </article>
+        </article>'
     <?php endif; ?>
 
     <form method="post">
