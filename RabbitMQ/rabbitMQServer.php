@@ -22,7 +22,6 @@ exit();
 
 function getAllGames($lastAppID = 0): array
 {
-    echo $lastAppID;
     global $apiKey;
     $url = "https://api.steampowered.com/IStoreService/GetAppList/v1/?key=$apiKey&include_games=true&include_dlc=false&include_hardware=false&include_videos=false&include_software=false&max_results=50000&last_appid=$lastAppID";
 
@@ -106,7 +105,7 @@ function getUserProfile(string $steamID): array
     ];
 }
 
-function getGameTags(int $appID): array
+function getGameTagsAndDescriptions(int $appID): array
 {
     $appDetails = "https://store.steampowered.com/api/appdetails?appids=$appID";
     $context = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'Mozilla/5.0']]);
@@ -117,6 +116,8 @@ function getGameTags(int $appID): array
     }
 
     $content = json_decode($response, true);
+
+    var_dump($content);
 
     if (!isset($content[$appID]['success']) || $content[$appID]['success'] !== true) {
         return [];
@@ -129,6 +130,7 @@ function getGameTags(int $appID): array
     $data = $content[$appID]['data'];
     $genres = $data['genres'] ?? [];
     $categories = $data['categories'] ?? [];
+    $description = $data['short_description'] ?? '';
 
     $tags = [];
     foreach ($genres as $genre) {
@@ -136,13 +138,17 @@ function getGameTags(int $appID): array
             $tags[] = $genre['description'];
         }
     }
+
     foreach ($categories as $category) {
         if (isset($category['description'])) {
             $tags[] = $category['description'];
         }
     }
 
-    return array_values(array_unique($tags));
+    return [
+            'tags' => array_values($tags),
+            'description' => $description
+    ];
 }
 
 function requestProcessor($request)
@@ -157,8 +163,8 @@ function requestProcessor($request)
 
     if ($type == 'profile') {
         return getuserProfile($request['steamid']);
-    } else if ($type == 'tags') {
-        return getGameTags($request['appid']);
+    } else if ($type == 'getgametagsanddesscriptions') {
+        return getGameTagsAndDescriptions($request['appid']);
     } else if ($type == 'getallgames') {
         return getAllGames($request['lastappid']);
     } else if ($type == 'getusergames') {
