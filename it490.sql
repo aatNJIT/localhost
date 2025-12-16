@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Dec 15, 2025 at 08:14 PM
+-- Generation Time: Dec 16, 2025 at 04:28 AM
 -- Server version: 8.0.43-0ubuntu0.24.04.2
 -- PHP Version: 8.3.6
 
@@ -83,7 +83,8 @@ CREATE TABLE `Followers` (
 CREATE TABLE `Games` (
   `AppID` int NOT NULL,
   `Name` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-  `Tags` json DEFAULT NULL
+  `Tags` json DEFAULT NULL,
+  `Description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
