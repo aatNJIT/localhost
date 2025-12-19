@@ -13,7 +13,3 @@ function log_message($message)
         'msg'  => $message
     ]);
 }
-
-~                                                                                                                               
-~                                                                                                                               
-~                          
