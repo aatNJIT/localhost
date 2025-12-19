@@ -2,19 +2,23 @@
 $errorMessage = '';
 $successMessage = '';
 
-if (isset($_POST['username']) && isset($_POST['password'])) {
+if (isset($_POST['username']) && isset($_POST['email']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
     require_once('identifiers.php');
 
     $username = $_POST["username"];
+    $email = $_POST["email"];
     $password = $_POST["password"];
 
-    if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
-        $errorMessage = 'Invalid username or password';
+    if (empty($username) || empty($email) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
+        $errorMessage = 'Invalid username, email or password';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errorMessage = 'Invalid email address';
     } else {
         $request = array();
         $request['type'] = RequestType::REGISTER;
         $request[Identifiers::USERNAME] = $username;
+        $request['email'] = $email;
         $request[Identifiers::PASSWORD] = password_hash($password, PASSWORD_BCRYPT);
 
         $client = RabbitClient::getConnection();
@@ -23,7 +27,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         if ($response) {
             $successMessage = 'Registered Successfully';
         } else {
-            $errorMessage = 'Failed To Register';
+            $errorMessage = 'Failed To Register - Username or Email already exists';
         }
     }
 }
@@ -74,6 +78,11 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             <label><b>Username</b></label>
             <label>
                 <input type="text" placeholder="Username" name="username" required maxlength="64">
+            </label>
+
+            <label><b>Email</b></label>
+            <label>
+                <input type="email" placeholder="email@example.com" name="email" required maxlength="255">
             </label>
 
             <label><b>Password</b></label>

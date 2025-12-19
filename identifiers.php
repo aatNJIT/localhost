@@ -26,7 +26,10 @@ enum RequestType: string
     case STORE_GAME_TAGS = 'storegametags';
     case GET_USER_FOLLOWING = 'getuserfollowing';
     case GET_CATALOG_COMMENTS = 'getcatalogcomments';
+    case SUBMIT_COMMENT = 'submitcomment';
     case GET_USER = 'getuser';
+    case TWO_FA_LOGIN = '2fa_login';
+    case TWO_FA_VERIFY = '2fa_verify';
 }
 
 class Identifiers
@@ -39,4 +42,5 @@ class Identifiers
     const string SESSION_ID = 'sessionid';
     const string STEAM_ID = 'steamid';
     const string STEAM_PROFILE = "profile";
+    const string OTP = 'otp';
 }
