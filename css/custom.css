@@ -50,8 +50,8 @@
     align-items: center;
     padding: 1rem;
     margin-bottom: 0.4rem;
-    border: 1px solid var(--pico-form-element-border-color);
-    border-radius: 4px;
+    border: 2px solid var(--pico-form-element-border-color);
+    border-radius: 3px;
     cursor: pointer;
     transition: background-color .1s;
     background-color: transparent;
@@ -67,7 +67,7 @@
 
 .games-table img.game-thumbnail {
     object-fit: cover;
-    border-radius: 4px;
+    border-radius: 3px;
 }
 
 .games-table td {
