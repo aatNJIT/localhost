@@ -14,7 +14,6 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
         $errorMessage = 'Invalid username or password';
     } else {
-        // Send 2FA login (checks password, sends OTP)
         $request = [
             'type' => RequestType::TWO_FA_LOGIN,
             Identifiers::USERNAME => $username,
@@ -22,12 +21,9 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         ];
         $response = RabbitClient::getConnection()->send_request($request);
 
-        if (is_array($response) && isset($response['success']) && $response['success']) {
-            // Password correct, OTP email sent
+        if (is_array($response)) {
             $_SESSION['temp_userid'] = $response[Identifiers::USER_ID];
             $_SESSION['temp_username'] = $response[Identifiers::USERNAME];
-            
-            // Redirect to OTP verification page
             header('Location: verify_otp.php');
             exit();
         } else {
