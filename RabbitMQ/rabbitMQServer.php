@@ -5,8 +5,6 @@ require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 require_once('../MySQL/MySQL.php');
 require_once('/usr/share/php/libphp-phpmailer/autoload.php');
-require_once('logger.php');
-
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -252,7 +250,21 @@ function getUserCatalogs(int $userID): array
         return [];
     }
 
-    $catalogSelectStatement = $connection->prepare("SELECT CatalogID, Title FROM Catalogs WHERE UserID = ?");
+    $catalogSelectStatement = $connection->prepare("
+        SELECT 
+            c.CatalogID, 
+            c.Title,
+            COALESCE(SUM(CASE 
+                WHEN cv.VoteType = 'up' THEN 1 
+                WHEN cv.VoteType = 'down' THEN -1 
+                ELSE 0 
+            END), 0) AS Votes
+        FROM Catalogs c
+        LEFT JOIN Catalog_Votes cv ON c.CatalogID = cv.CatalogID
+        WHERE c.UserID = ?
+        GROUP BY c.CatalogID, c.Title
+    ");
+
     $catalogSelectStatement->bind_param("i", $userID);
     $catalogSelectStatement->execute();
     return $catalogSelectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -655,6 +667,62 @@ function getMessagesBetweenUsers($user1ID, $user2ID, $limit = 50, $offset = 0): 
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
+function voteForCatalog($userID, $catalogID, $action): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno != 0) {
+        return false;
+    }
+
+    $action = strtolower($action);
+    if ($action !== 'up' && $action !== 'down') {
+        return false;
+    }
+
+    $checkStatement = $connection->prepare("SELECT VoteType FROM Catalog_Votes WHERE UserID = ? AND CatalogID = ?");
+    $checkStatement->bind_param("ii", $userID, $catalogID);
+    $checkStatement->execute();
+    $result = $checkStatement->get_result();
+
+    if ($result->num_rows > 0) {
+        $existingVote = $result->fetch_assoc();
+        if ($existingVote['VoteType'] === $action) {
+            $deleteStatement = $connection->prepare("DELETE FROM Catalog_Votes WHERE UserID = ? AND CatalogID = ?");
+            $deleteStatement->bind_param("ii", $userID, $catalogID);
+            return $deleteStatement->execute();
+        } else {
+            $updateStatement = $connection->prepare("UPDATE Catalog_Votes SET VoteType = ? WHERE UserID = ? AND CatalogID = ?");
+            $updateStatement->bind_param("sii", $action, $userID, $catalogID);
+            return $updateStatement->execute();
+        }
+    } else {
+        $insertStatement = $connection->prepare("INSERT INTO Catalog_Votes (UserID, CatalogID, VoteType) VALUES (?, ?, ?)");
+        $insertStatement->bind_param("iis", $userID, $catalogID, $action);
+        return $insertStatement->execute();
+    }
+}
+
+function getUserVotes($userID): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno != 0) {
+        return [];
+    }
+
+    $voteSelectStatement = $connection->prepare("SELECT CatalogID, VoteType FROM Catalog_Votes WHERE UserID = ?");
+    $voteSelectStatement->bind_param("i", $userID);
+    $voteSelectStatement->execute();
+    $result = $voteSelectStatement->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    $votes = [];
+    foreach ($result as $vote) {
+        $votes[$vote['CatalogID']] = $vote['VoteType'];
+    }
+
+    return $votes;
+}
 function requestProcessor($request): bool|array
 {
     echo var_dump($request) . PHP_EOL;
@@ -688,6 +756,8 @@ function requestProcessor($request): bool|array
         'getuser' => getUser($request['userid']),
         'sendmessage' => sendUserMesssage($request['senderuserid'], $request['receiveruserid'], $request['message']),
         'getmessagesbetweenusers' => getMessagesBetweenUsers($request['senderuserid'], $request['receiveruserid'], $request['limit'], $request['offset']),
+        'vote' => voteForCatalog($request['userid'], $request['catalogid'], $request['action']),
+        'getuservotes' => getUserVotes($request['userid']),
         '2fa_login' => send2FALogin($request),
         '2fa_verify' => verify2FALogin($request),
         default => false,
