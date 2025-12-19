@@ -2,6 +2,7 @@
 session_start();
 require_once('identifiers.php');
 require_once('rabbitMQ/RabbitClient.php');
+require_once('logger.php');
 
 $comment = $_POST['comment'];
 $catalogID = $_POST['catalogid'];
@@ -30,5 +31,6 @@ if ($response) {
     exit();
 }
 
+log_message("Failed to add comment for catalog $catalogID");
 header('Location: viewCatalog.php?catalogid=' . $catalogID . '&error=' . urlencode('Error adding comment'));
 exit();

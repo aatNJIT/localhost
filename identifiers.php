@@ -15,7 +15,6 @@ enum RequestType: string
     case SAVE_CATALOG = 'savecatalog';
     case GET_USER_CATALOGS = 'getusercatalogs';
     case GET_USER_VOTES = 'getuservotes';
-
     case VOTE_CATALOG = 'vote';
     case GET_ALL_CATALOGS = 'getallcatalogs';
     case GET_CATALOG = 'getcatalog';

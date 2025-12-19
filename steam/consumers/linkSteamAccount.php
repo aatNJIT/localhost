@@ -1,6 +1,7 @@
 <?php
 require_once('../../rabbitMQ/RabbitClient.php');
 require_once('../../identifiers.php');
+require_once('../../logger.php');
 session_start();
 
 if (!isset($_SESSION[Identifiers::USER_ID]) || !isset($_SESSION[Identifiers::STEAM_ID])) {
@@ -19,6 +20,7 @@ if (RabbitClient::getConnection()->send_request($request)) {
     $_SESSION[Identifiers::STEAM_PROFILE] = $response;
     header('Location: ../../profile.php');
 } else {
+    log_message("User failed to link Steam account " . $_SESSION[Identifiers::USER_ID]);
     unset($_SESSION[IDentifiers::STEAM_ID]);
     header('Location: ../../index.php');
 }

@@ -7,12 +7,14 @@ $successMessage = '';
 if (isset($_POST['username']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
     require_once('identifiers.php');
+    require_once('logger.php');
 
     $username = $_POST["username"];
     $password = $_POST["password"];
 
     if (empty($username) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
         $errorMessage = 'Invalid username or password';
+        log_message("User failed to log in: $username");
     } else {
         $request = [
             'type' => RequestType::TWO_FA_LOGIN,
@@ -27,7 +29,8 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
             header('Location: verify_otp.php');
             exit();
         } else {
-            $errorMessage = isset($response['error']) ? $response['error'] : 'Invalid Username or Password';
+            log_message("User failed to log in: $username");
+            $errorMessage = 'Invalid Username or Password';
         }
     }
 }

@@ -13,7 +13,9 @@ if (isset($_POST['username']) && isset($_POST['email']) && isset($_POST['passwor
 
     if (empty($username) || empty($email) || empty($password) || strlen($username) > 64 || strlen($password) > 64) {
         $errorMessage = 'Invalid username, email or password';
+        log_message("User entered invalid username, email or password: $username");
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        log_message("User entered invalid email address: $email");
         $errorMessage = 'Invalid email address';
     } else {
         $request = array();
@@ -28,6 +30,7 @@ if (isset($_POST['username']) && isset($_POST['email']) && isset($_POST['passwor
         if ($response) {
             $successMessage = 'Registered Successfully';
         } else {
+            log_message("Failed to register user $username");
             $errorMessage = 'Failed To Register - Username or Email already exists';
         }
     }

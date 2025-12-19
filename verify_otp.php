@@ -43,6 +43,7 @@ if (isset($_POST['otp'])) {
             header('Location: profile.php');
             exit();
         } else {
+            log_message("User failed to verify OTP: $userid");
             $errorMessage = 'Invalid or expired OTP code';
         }
     }

@@ -1,7 +1,7 @@
 <?php
  require_once('rabbitMQ/RabbitClient.php');
 
-function log_message($message)
+function log_message($message): void
 {
     $client = RabbitClient::getConnection("Logging");
     $client->publish([

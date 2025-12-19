@@ -2,6 +2,7 @@
 session_start();
 require_once('identifiers.php');
 require_once('rabbitMQ/RabbitClient.php');
+require_once('logger.php');
 
 if (!isset($_SESSION[Identifiers::USER_ID])) {
     header("Location: users.php?error=" . urlencode("You must be logged in to unfollow users"));
@@ -36,5 +37,6 @@ if ($response) {
     exit();
 }
 
+log_message("Failed to unfollow user $userIDToFollow");
 header("Location: users.php?error=" . urlencode("Error unfollowing user: " . $username));
 exit();
