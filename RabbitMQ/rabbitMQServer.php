@@ -5,6 +5,8 @@ require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 require_once('../MySQL/MySQL.php');
 require_once('/usr/share/php/libphp-phpmailer/autoload.php');
+require_once('logger.php');
+
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -19,7 +21,7 @@ if (!$env || !isset($env['SMTP_USERNAME']) || !isset($env['SMTP_PASSWORD'])) {
 
 $server = new rabbitMQServer("rabbitMQ.ini", "Apache");
 echo PHP_EOL . "STARTED" . PHP_EOL;
-
+//log_message('Test from broker');
 $server->process_requests('requestProcessor');
 
 echo PHP_EOL . "ENDED" . PHP_EOL;
@@ -76,6 +78,7 @@ function register(string $username, string $email, string $password): bool
     $existsStatement->execute();
 
     if ($existsStatement->get_result()->num_rows > 0) {
+        log_message("Failed to register user, user already exists." . $username);
         return false;
     }
 
@@ -84,6 +87,7 @@ function register(string $username, string $email, string $password): bool
     $emailExistsStatement->execute();
 
     if ($emailExistsStatement->get_result()->num_rows > 0) {
+        log_message("Failed to register user, email" . $email ."already exists");
         return false;
     }
 
@@ -123,6 +127,7 @@ function checkSession(int $sessionID, int $userID): array|bool
     $session = $result->fetch_assoc();
 
     if (!$session) {
+        log_message("Failed to validate session.");
         return false;
     }
 
@@ -131,6 +136,7 @@ function checkSession(int $sessionID, int $userID): array|bool
         $deleteStatement = $connection->prepare("DELETE FROM Sessions WHERE SessionID = ? AND UserID = ?");
         $deleteStatement->bind_param("ii", $sessionID, $userID);
         $deleteStatement->execute();
+        log_message("Deleting expired session.");
         return false;
     }
 
@@ -167,6 +173,7 @@ function linkSteamAccount(int $userID, int $steamID): bool
     $userExistsStatement->execute();
 
     if ($userExistsStatement->get_result()->num_rows <= 0) {
+        log_message("Tried to link steam account for non-existing user.");
         return false;
     }
 
@@ -175,6 +182,7 @@ function linkSteamAccount(int $userID, int $steamID): bool
     $duplicateSteamIdStatement->execute();
 
     if ($duplicateSteamIdStatement->get_result()->num_rows > 0) {
+        log_message("Duplicate: Steam account has already been linked.");
         return false;
     }
 
@@ -197,6 +205,7 @@ function unlinkSteamAccount(int $userID): bool
     $existsStatement->execute();
 
     if ($existsStatement->get_result()->num_rows <= 0) {
+        log_message("Tried to unlink steam account for non-existing user.");
         return false;
     }
 
@@ -219,6 +228,7 @@ function saveCatalog(int $userID, string $title, array $ratings): bool
         $gameExistsStatement->bind_param("i", $appID);
         $gameExistsStatement->execute();
         if ($gameExistsStatement->get_result()->num_rows <= 0) {
+            log_message("User tried to save catalog with non-existing game.");
             return false;
         }
     }
@@ -226,6 +236,7 @@ function saveCatalog(int $userID, string $title, array $ratings): bool
     $catalogInsertStatement = $connection->prepare("INSERT INTO Catalogs (Title, UserID) VALUES (?, ?)");
     $catalogInsertStatement->bind_param("si", $title, $userID);
     if (!$catalogInsertStatement->execute()) {
+        log_message("Failed to insert catalog for user.");
         return false;
     }
 
@@ -235,6 +246,7 @@ function saveCatalog(int $userID, string $title, array $ratings): bool
         $gameExistsStatement = $connection->prepare("INSERT INTO Catalog_Games (CatalogID, AppID, Rating) VALUES (?, ?, ?)");
         $gameExistsStatement->bind_param("iii", $catalogID, $appID, $rating);
         if (!$gameExistsStatement->execute()) {
+            log_message("User tried to save catalog with non-existing game.");
             return false;
         }
     }
@@ -321,6 +333,7 @@ function getAllUsers(): array
 function followUser(int $followerID, int $followedID): bool
 {
     if ($followerID === $followedID) {
+        log_message("User tried to follow themselves.");
         return false;
     }
 
@@ -347,6 +360,7 @@ function followUser(int $followerID, int $followedID): bool
 function unfollowUser(int $followerID, int $followedID): bool
 {
     if ($followerID === $followedID) {
+        log_message("User tried to unfollow themselves.");
         return false;
     }
 
@@ -407,6 +421,7 @@ function addCatalogComment(int $catalogID, int $userID, string $comment): bool
     $existsStatement->execute();
 
     if ($existsStatement->get_result()->num_rows <= 0) {
+        log_message("User tried to add comment to non-existing catalog.");
         return false;
     }
 
@@ -499,6 +514,7 @@ function send2FALogin(array $request): bool|array
     $password = $request['password'] ?? '';
 
     if (empty($username) || empty($password)) {
+        log_message("Invalid username or password.");
         return false;
     }
 
@@ -515,12 +531,14 @@ function send2FALogin(array $request): bool|array
     $user = $statement->get_result()->fetch_assoc();
 
     if ($user == null || !password_verify($password, $user['Password'])) {
+        log_message("User doesn't exist/wrong password.");
         return false;
     }
 
     try {
         $otp = random_int(100000, 999999);
     } catch (Exception) {
+        log_message("Failed to generate OTP.");
         return false;
     }
 
@@ -566,11 +584,13 @@ function verify2FALogin(array $request): bool|array
     $user = $statement->get_result()->fetch_assoc();
 
     if (!$user) {
+        log_message("User has no valid OTP.");
         return false;
     }
 
     $otp_expiry = strtotime($user['OTP_Expiry']);
     if ($otp_expiry < time()) {
+        log_message("OTP expired.");
         return false;
     }
 
@@ -581,6 +601,7 @@ function verify2FALogin(array $request): bool|array
     try {
         $sessionID = random_int(PHP_INT_MIN, PHP_INT_MAX);
     } catch (Exception) {
+        log_message("Failed to generate session ID.");
         return false;
     }
 
@@ -677,6 +698,7 @@ function voteForCatalog($userID, $catalogID, $action): bool
 
     $action = strtolower($action);
     if ($action !== 'up' && $action !== 'down') {
+        log_message("Invalid vote action."); 
         return false;
     }
 
