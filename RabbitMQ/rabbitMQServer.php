@@ -36,6 +36,7 @@ function getAllGames($lastAppID = 0): array
     $response = file_get_contents($url, false, $context);
 
     if (!$response) {
+        log_message("Failed to get all games");
         return [];
     }
 
@@ -79,6 +80,7 @@ function getUserProfile(string $steamID): array
     $content = json_decode($response, true);
 
     if (!isset($content['response']['players'][0])) {
+        log_message("Player profile not found  on steam");
         return [];
     }
 
@@ -121,10 +123,12 @@ function getGameTagsAndDescriptions(int $appID): array
     var_dump($content);
 
     if (!isset($content[$appID]['success']) || $content[$appID]['success'] !== true) {
+        log_message("Failed to get game tags");
         return [];
     }
 
     if (!isset($content[$appID]['data'])) {
+        log_message("Invalid response from steam");
         return [];
     }
 
