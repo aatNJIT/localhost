@@ -485,13 +485,13 @@ function send2FALogin(array $request): bool|array
     $password = $request['password'] ?? '';
 
     if (empty($username) || empty($password)) {
-        return ['success' => false, 'error' => 'Username and password required'];
+        return false;
     }
 
     $connection = MySQL::getConnection();
 
     if ($connection->errno != 0) {
-        return ['success' => false, 'error' => 'Database connection failed'];
+        return false;
     }
 
     $statement = $connection->prepare("SELECT * FROM Users WHERE Username = ?");
@@ -501,13 +501,13 @@ function send2FALogin(array $request): bool|array
     $user = $statement->get_result()->fetch_assoc();
 
     if ($user == null || !password_verify($password, $user['Password'])) {
-        return ['success' => false, 'error' => 'Invalid username or password'];
+        return false;
     }
 
     try {
         $otp = random_int(100000, 999999);
     } catch (Exception) {
-        return ['success' => false, 'error' => 'OTP generation failed'];
+        return false;
     }
 
     $otp_expiry = date("Y-m-d H:i:s", strtotime("+1 minute"));
@@ -520,11 +520,10 @@ function send2FALogin(array $request): bool|array
     $email = $user['Email'];
 
     if (!empty($email)) {
-        $emailSent = sendOTPEmail($email, $otp, $username);
+        sendOTPEmail($email, $otp, $username);
     }
 
     return [
-            'success' => true,
             'userid' => $userID,
             'username' => $username,
             'message' => 'OTP sent to your email'
@@ -537,13 +536,13 @@ function verify2FALogin(array $request): bool|array
     $otp = $request['otp'] ?? '';
 
     if (empty($userID) || empty($otp)) {
-        return ['success' => false, 'error' => 'User ID and OTP required'];
+        return false;
     }
 
     $connection = MySQL::getConnection();
 
     if ($connection->errno != 0) {
-        return ['success' => false, 'error' => 'Database connection failed'];
+        return false;
     }
 
     $statement = $connection->prepare("SELECT * FROM Users WHERE ID = ? AND OTP = ?");
@@ -553,12 +552,12 @@ function verify2FALogin(array $request): bool|array
     $user = $statement->get_result()->fetch_assoc();
 
     if (!$user) {
-        return ['success' => false, 'error' => 'Invalid OTP'];
+        return false;
     }
 
     $otp_expiry = strtotime($user['OTP_Expiry']);
     if ($otp_expiry < time()) {
-        return ['success' => false, 'error' => 'OTP has expired', 'expired' => true];
+        return false;
     }
 
     $clearOTPStatement = $connection->prepare("UPDATE Users SET OTP = NULL, OTP_Expiry = NULL WHERE ID = ?");
@@ -567,8 +566,8 @@ function verify2FALogin(array $request): bool|array
 
     try {
         $sessionID = random_int(PHP_INT_MIN, PHP_INT_MAX);
-    } catch (Exception $e) {
-        return ['success' => false, 'error' => 'Session creation failed'];
+    } catch (Exception) {
+        return false;
     }
 
     $sessionStatement = $connection->prepare("INSERT INTO Sessions (SessionID, UserID, Created, Activity) VALUES (?, ?, NOW(), NOW())");
@@ -576,7 +575,6 @@ function verify2FALogin(array $request): bool|array
     $sessionStatement->execute();
 
     return [
-            'success' => true,
             'userid' => $userID,
             'username' => $user['Username'],
             'steamid' => $user['SteamID'],
@@ -602,9 +600,57 @@ function sendOTPEmail(string $to, string $otp, string $username): bool
         $mail->Subject = 'Your OTP for Login';
         $mail->Body = "Hello $username,<br><br>Your OTP is: <b>$otp</b><br><br>This code will expire in 5 minutes.";
         return $mail->send();
-    } catch (PHPMailerException $e) {
+    } catch (PHPMailerException) {
         return false;
     }
+}
+
+function sendUserMesssage($senderUserID, $receiverUserID, $message): bool
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->errno != 0) {
+        return false;
+    }
+
+    $insertStatemenent = $connection->prepare("INSERT INTO Messages (SenderID, ReceiverID, Text) VALUES (?, ? ,?)");
+    $insertStatemenent->bind_param("iis", $senderUserID, $receiverUserID, $message);
+    $insertStatemenent->execute();
+    return true;
+}
+
+function getMessagesBetweenUsers($user1ID, $user2ID, $limit = 50, $offset = 0): array
+{
+    $connection = MySQL::getConnection();
+
+    if ($connection->connect_errno != 0) {
+        return [];
+    }
+
+    $limit = (int)$limit;
+    $offset = (int)$offset;
+
+    $query = "
+        SELECT 
+            m.ID,
+            m.SenderID,
+            sender.Username AS SenderUsername,
+            m.ReceiverID,
+            receiver.Username AS ReceiverUsername,
+            m.Text
+        FROM Messages m
+        JOIN Users sender ON m.SenderID = sender.ID
+        JOIN Users receiver ON m.ReceiverID = receiver.ID
+        WHERE (m.SenderID = ? AND m.ReceiverID = ?) OR (m.SenderID = ? AND m.ReceiverID = ?)
+        ORDER BY m.ID ASC
+        LIMIT $limit OFFSET $offset
+    ";
+
+    $selectStatement = $connection->prepare($query);
+    $selectStatement->bind_param("iiii", $user1ID, $user2ID, $user2ID, $user1ID);
+    $selectStatement->execute();
+    $result = $selectStatement->get_result();
+    return $result->fetch_all(MYSQLI_ASSOC);
 }
 
 function requestProcessor($request): bool|array
@@ -638,6 +684,8 @@ function requestProcessor($request): bool|array
         'addcatalogcomment' => addCatalogComment($request['catalogid'], $request['userid'], $request['comment']),
         'getcatalogcomments' => getCatalogComments($request['catalogid']),
         'getuser' => getUser($request['userid']),
+        'sendmessage' => sendUserMesssage($request['senderuserid'], $request['receiveruserid'], $request['message']),
+        'getmessagesbetweenusers' => getMessagesBetweenUsers($request['senderuserid'], $request['receiveruserid'], $request['limit'], $request['offset']),
         '2fa_login' => send2FALogin($request),
         '2fa_verify' => verify2FALogin($request),
         default => false,
