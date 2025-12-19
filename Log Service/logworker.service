@@ -1,0 +1,29 @@
+# CONFIGURATION
+# Change User=anthony to your machine's username.
+#
+# INSTALLATION
+# 1. Place this file inside of: /etc/systemd/system/
+# 2. Reload systemd: sudo systemctl daemon-reload
+# 3. Enable service: sudo systemctl enable logworker.service
+# 4. Start service: sudo systemctl start logworker.service
+# 5. Check status: sudo systemctl status logworker.service
+# ========================================================
+
+[Unit]
+Description=Localhost Log Worker Service
+After=network.target mysql.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+# Make changes here.
+# ==================================================================
+User=anthony
+WorkingDirectory=/var/Broker/RabbitMQ
+ExecStart=/usr/bin/env php /var/Broker/RabbitMQ/logworker.php
+# ==================================================================
+[Install]
+WantedBy=multi-user.target
+
