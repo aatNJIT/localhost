@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ADDR="192.168.56.103"
+ADDR="100.123.15.99"
 USER="anthony"
 FILE="/var/log/it490/system.log"
 
