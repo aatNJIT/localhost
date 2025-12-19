@@ -5,6 +5,7 @@ $successMessage = '';
 if (isset($_POST['username']) && isset($_POST['email']) && isset($_POST['password'])) {
     require_once('rabbitMQ/RabbitClient.php');
     require_once('identifiers.php');
+    require_once('logger.php');
 
     $username = $_POST["username"];
     $email = $_POST["email"];
