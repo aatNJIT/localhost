@@ -11,6 +11,7 @@ if (!isset($_SESSION['temp_userid'])) {
 if (isset($_POST['otp'])) {
     require_once('rabbitMQ/RabbitClient.php');
     require_once('identifiers.php');
+    require_once('logger.php');
 
     $userid = $_SESSION['temp_userid'];
     $otp = trim($_POST['otp']);
