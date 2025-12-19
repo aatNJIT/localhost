@@ -10,6 +10,13 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
+$env = parse_ini_file('../.env');
+
+if (!$env || !isset($env['SMTP_USERNAME']) || !isset($env['SMTP_PASSWORD'])) {
+    echo "Missing OTP .env File";
+    return false;
+}
+
 $server = new rabbitMQServer("rabbitMQ.ini", "Apache");
 echo PHP_EOL . "STARTED" . PHP_EOL;
 
@@ -58,11 +65,9 @@ function login(string $username, string $password): bool|array
 
 function register(string $username, string $email, string $password): bool
 {
-    error_log("Register called - Username: $username, Email: $email");
     $connection = MySQL::getConnection();
 
     if ($connection->errno != 0) {
-        error_log("Database connection error");
         return false;
     }
 
@@ -494,18 +499,17 @@ function send2FALogin(array $request): bool|array
     $statement->execute();
 
     $user = $statement->get_result()->fetch_assoc();
-    
+
     if ($user == null || !password_verify($password, $user['Password'])) {
         return ['success' => false, 'error' => 'Invalid username or password'];
     }
 
     try {
         $otp = random_int(100000, 999999);
-        error_log("Generated OTP for $username: $otp"); //remove after testing
-    } catch (Exception $e) {
+    } catch (Exception) {
         return ['success' => false, 'error' => 'OTP generation failed'];
     }
-    
+
     $otp_expiry = date("Y-m-d H:i:s", strtotime("+1 minute"));
     $userID = $user['ID'];
 
@@ -513,25 +517,17 @@ function send2FALogin(array $request): bool|array
     $updateStatement->bind_param("ssi", $otp, $otp_expiry, $userID);
     $updateStatement->execute();
 
-    error_log("=== 2FA OTP for user '$username': $otp ===");
     $email = $user['Email'];
-    
-    if (empty($email)) {
-        error_log("WARNING: User $username has no email, logging OTP: $otp");
-    } else {
+
+    if (!empty($email)) {
         $emailSent = sendOTPEmail($email, $otp, $username);
-        
-        if (!$emailSent) {
-            error_log("ERROR: Failed to send OTP to $email for user $username. OTP: $otp");
-        }
     }
 
-
     return [
-        'success' => true,
-        'userid' => $userID,
-        'username' => $username,
-        'message' => 'OTP sent to your email'
+            'success' => true,
+            'userid' => $userID,
+            'username' => $username,
+            'message' => 'OTP sent to your email'
     ];
 }
 
@@ -580,27 +576,18 @@ function verify2FALogin(array $request): bool|array
     $sessionStatement->execute();
 
     return [
-        'success' => true,
-        'userid' => $userID,
-        'username' => $user['Username'],
-        'steamid' => $user['SteamID'],
-        'sessionid' => $sessionID
+            'success' => true,
+            'userid' => $userID,
+            'username' => $user['Username'],
+            'steamid' => $user['SteamID'],
+            'sessionid' => $sessionID
     ];
 }
 
 function sendOTPEmail(string $to, string $otp, string $username): bool
 {
-    error_log("sendOTPEmail called for user: $username, email: $to");
-    
+    global $env;
     try {
-        // SMTP credentials from .env
-        $env = parse_ini_file('../.env');
-        
-        if (!$env || !isset($env['SMTP_USERNAME']) || !isset($env['SMTP_PASSWORD'])) {
-            error_log("2FA Email Error: SMTP credentials not found in .env file");
-            return false;
-        }
-        
         $mail = new PHPMailer(true);
         $mail->isSMTP();
         $mail->Host = $env['SMTP_HOST'] ?? 'smtp.gmail.com';
@@ -614,13 +601,8 @@ function sendOTPEmail(string $to, string $otp, string $username): bool
         $mail->addAddress($to, $username);
         $mail->Subject = 'Your OTP for Login';
         $mail->Body = "Hello $username,<br><br>Your OTP is: <b>$otp</b><br><br>This code will expire in 5 minutes.";
-        
-        $result = $mail->send();
-        error_log("Email send result for $username: " . ($result ? "SUCCESS" : "FAILED"));
-        return $result;
-        
+        return $mail->send();
     } catch (PHPMailerException $e) {
-        error_log("2FA Email Error: " . $e->getMessage());
         return false;
     }
 }
