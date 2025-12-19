@@ -4,7 +4,7 @@ require_once('identifiers.php');
 require_once('rabbitMQ/RabbitClient.php');
 
 if (!isset($_SESSION[Identifiers::USER_ID])) {
-    header("Location: users.php?error=" . urlencode("You must be logged in to follow users"));
+    header("Location: users.php?error=" . urlencode("You must be logged in to unfollow users"));
     exit();
 }
 

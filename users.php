@@ -97,8 +97,7 @@ if (isset($_SESSION[Identifiers::USER_ID])) {
 
     <article class="bordered-article" style="margin-top: 1rem; text-align: center; padding: 1rem;">
         <?php
-        $request = ['type' => RequestType::GET_ALL_USERS];
-        $response = RabbitClient::getConnection()->send_request($request);
+        $response = RabbitClient::getConnection()->send_request(['type' => RequestType::GET_ALL_USERS]);
         ?>
 
         <?php if (is_array($response) && !empty($response)): ?>
@@ -123,14 +122,14 @@ if (isset($_SESSION[Identifiers::USER_ID])) {
                     ?>
 
                     <div class="game-div" style="justify-content: space-between">
-
                         <div style="text-align: left;">
                             <strong class="steam-username">Username: <?= $username ?></strong>
                             <?php if ($isCurrentUser): ?>
                                 <span style="color: var(--pico-primary); margin-left: 0.5rem;">(You)</span>
                             <?php endif; ?>
                             <?php if ($isFollowing): ?>
-                                <span style="color: var(--pico-secondary); margin-left: 0.5rem;"><i class="fa-solid fa-check"></i>
+                                <span style="color: var(--pico-secondary); margin-left: 0.5rem;"><i
+                                            class="fa-solid fa-check"></i>
                                     Following
                                 </span>
                                 <span style="color: var(--pico-secondary); margin-left: 0.5rem;">
@@ -141,27 +140,36 @@ if (isset($_SESSION[Identifiers::USER_ID])) {
                             <small style="color: var(--pico-muted-color);"><?= $user['SteamID'] ?? "N/A" ?></small>
                         </div>
 
-                        <div style="display: flex; gap: 0.5rem; flex-shrink: 0">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
                             <form method="get" action="viewUserCatalogs.php">
                                 <input type="hidden" name="userid" value="<?= $userID ?>">
-                                <button type="submit" style="margin-top: 1rem">View Catalogs</button>
+                                <button type="submit" style="margin-top: 1rem">
+                                    <i class="fa-solid fa-magnifying-glass"></i>View Catalogs
+                                </button>
                             </form>
+
+                            <a href="message.php?userid=<?= $userID ?>" style="margin-top: 1rem; display: inline-block">
+                                <button type="button">
+                                    <i class="fa-regular fa-message"></i> Message
+                                </button>
+                            </a>
 
                             <?php if (isset($_SESSION[Identifiers::USER_ID]) && !$isCurrentUser): ?>
                                 <?php if ($isFollowing): ?>
                                     <form method="post" action="unfollowUser.php">
                                         <input type="hidden" name="userid" value="<?= $userID ?>">
                                         <input type="hidden" name="username" value="<?= $username ?>">
-                                        <button type="submit"
-                                                style="margin-top: 1rem; background-color: var(--pico-mark-background-color);">
-                                            Unfollow
+                                        <button type="submit" style="margin-top: 1rem; background-color: var(--pico-mark-background-color);">
+                                            <i class="fa-solid fa-minus"></i> Unfollow
                                         </button>
                                     </form>
                                 <?php else: ?>
                                     <form method="post" action="followUser.php">
                                         <input type="hidden" name="userid" value="<?= $userID ?>">
                                         <input type="hidden" name="username" value="<?= $username ?>">
-                                        <button type="submit" style="margin-top: 1rem">Follow</button>
+                                        <button type="submit" style="margin-top: 1rem">
+                                            <i class="fa-solid fa-plus"></i> Follow
+                                        </button>
                                     </form>
                                 <?php endif; ?>
                             <?php endif; ?>

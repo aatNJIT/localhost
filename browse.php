@@ -7,27 +7,6 @@ if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::ST
     header("Location: profile.php");
     exit();
 }
-
-if (isset($_GET['action'])) {
-    $action = $_GET['action'];
-    if ($action === 'search') {
-        $name = $_GET['name'] ?? '';
-        $client = RabbitClient::getConnection();
-        $games = (array)$client->send_request(['type' => RequestType::SEARCH_GAMES, 'name' => $name, 'limit' => PHP_INT_MAX]);
-        echo json_encode($games);
-        exit();
-    } elseif ($action === 'games') {
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
-        $offset = ($page - 1) * $limit;
-        $client = RabbitClient::getConnection();
-        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'offset' => $offset, 'limit' => $limit]);
-        echo json_encode($games);
-        exit();
-    }
-    echo json_encode([]);
-    exit();
-}
 ?>
 
 <!DOCTYPE html>
@@ -99,7 +78,7 @@ if (isset($_GET['action'])) {
             <span aria-busy="true">Loading games...</span>
         </div>
 
-        <div id="tableContainer" style="display: none;">
+        <div id="tableContainer" style="display: none; overflow-x: auto;">
             <table role="grid" class="games-table">
                 <thead>
                 <tr>
@@ -160,7 +139,7 @@ if (isset($_GET['action'])) {
             try {
                 if (searchText.length > 0) {
                     if (searchResults.length === 0) {
-                        const url = `?action=search&name=${encodeURIComponent(searchText)}`;
+                        const url = `getGames.php?action=search&name=${encodeURIComponent(searchText)}`;
                         const response = await fetch(url);
                         searchResults = await response.json();
                     }
@@ -178,7 +157,7 @@ if (isset($_GET['action'])) {
                     appendGamesToTable(pageGames, true);
                 } else {
                     searchResults = [];
-                    const url = `?action=games&page=${currentPage}&limit=${gamesPerPage}`;
+                    const url = `getGames.php?action=games&page=${currentPage}&limit=${gamesPerPage}`;
                     const response = await fetch(url);
                     const games = await response.json();
 
@@ -211,9 +190,9 @@ if (isset($_GET['action'])) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
-                       <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg"
-                     alt="${name}"
-                     style="display: flex; max-width: 25vh; border-radius: 2px; margin-right: 1rem;">
+                     <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg"
+                    alt="${name}"
+                    class="game-thumbnail">
                     </td>
                     <td><strong>${game.Name}</strong></td>
                     <td>${game.Description || 'N/A'}</td>

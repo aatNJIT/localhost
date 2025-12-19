@@ -91,18 +91,26 @@ if (isset($_GET['error'])) {
         </article>'
     <?php endif; ?>
 
+    <?php
+    $catalog = RabbitClient::getConnection()->send_request(['type' => RequestType::GET_CATALOG, Identifiers::CATALOG_ID => $catalogID]);
+    $comments = RabbitClient::getConnection()->send_request(['type' => RequestType::GET_CATALOG_COMMENTS, Identifiers::CATALOG_ID => $catalogID]);
+    ?>
+
+<!--    --><?php //if (isset($_SESSION[Identifiers::USER_ID]) && is_array($catalog) && $catalog['UserID'] === $_SESSION[Identifiers::USER_ID]): ?>
+<!--        <div style="display: flex; justify-content: center; margin-bottom: 1rem;">-->
+<!--            <a href="editCatalog.php?catalogid=--><?php //= $catalog['CatalogID'] ?><!--"-->
+<!--               style="width: 100%; text-decoration: none;">-->
+<!--                <button type="button"-->
+<!--                        style="width: 100%; padding: 1rem; display: flex; justify-content: center; align-items: center;">-->
+<!--                    <i class="fa-solid fa-pen-to-square"></i>Edit Catalog-->
+<!--                </button>-->
+<!--            </a>-->
+<!--        </div>-->
+<!--    --><?php //endif; ?>
+
     <article class="bordered-article" style="text-align: center">
-        <?php
-        $catalogRequest = ['type' => RequestType::GET_CATALOG, Identifiers::CATALOG_ID => $catalogID];
-        $catalog = RabbitClient::getConnection()->send_request($catalogRequest);
-
-        $commentsRequest = ['type' => RequestType::GET_CATALOG_COMMENTS, Identifiers::CATALOG_ID => $catalogID];
-        $comments = RabbitClient::getConnection()->send_request($commentsRequest);
-        ?>
-
         <?php if (is_array($catalog) && !empty($catalog)): ?>
             <div style="max-height: 45vh; overflow-y: auto; padding-right: 1rem;">
-
                 <div style="margin-bottom: 0.5rem; font-weight: bold; font-size: 1.2rem;">
                     <?= $catalog['Title'] ?> (<?= count($catalog['games']) ?> games)
                 </div>
@@ -164,8 +172,7 @@ if (isset($_GET['error'])) {
                 <?php if (is_array($comments) && !empty($comments)): ?>
                     <?php foreach ($comments as $comment): ?>
                         <?php
-                        $userRequest = ['type' => RequestType::GET_USER, Identifiers::USER_ID => $comment['UserID']];
-                        $user = RabbitClient::getConnection()->send_request($userRequest);
+                        $user = RabbitClient::getConnection()->send_request(['type' => RequestType::GET_USER, Identifiers::USER_ID => $comment['UserID']]);
                         $username = is_array($user) && isset($user['Username']) ? $user['Username'] : 'Anonymous';
                         ?>
                         <div style="border-bottom: 1px solid var(--pico-muted-border-color); padding: 1rem 0;">

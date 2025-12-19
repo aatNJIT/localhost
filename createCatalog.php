@@ -1,12 +1,11 @@
 <?php
 session_start();
-ini_set('display_errors', 1);
 require_once('session.php');
 
 $errorMessage = '';
 $successMessage = '';
 
-if (!isset($_SESSION[Identifiers::STEAM_ID]) || !isset($_SESSION[Identifiers::STEAM_PROFILE])) {
+if (!isset($_SESSION[Identifiers::STEAM_ID])) {
     header("Location: profile.php");
     exit();
 }
@@ -18,28 +17,6 @@ if (isset($_GET['error'])) {
 } else if (isset($_GET['success'])) {
     $successMessage = $_GET['success'];
 }
-
-if (isset($_GET['action'])) {
-    $action = $_GET['action'];
-    if ($action === 'search') {
-        $name = $_GET['name'] ?? '';
-        $client = RabbitClient::getConnection();
-        $games = (array)$client->send_request(['type' => RequestType::SEARCH_GAMES, 'name' => $name, 'limit' => PHP_INT_MAX]);
-        echo json_encode($games);
-        exit();
-    } elseif ($action === 'games') {
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
-        $offset = ($page - 1) * $limit;
-        $client = RabbitClient::getConnection();
-        $games = (array)$client->send_request(['type' => RequestType::GAMES, 'offset' => $offset, 'limit' => $limit]);
-        echo json_encode($games);
-        exit();
-    }
-    echo json_encode([]);
-    exit();
-}
-$profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
 ?>
 
 <!DOCTYPE html>
@@ -112,19 +89,6 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
     <div style="display: flex; gap: 10px; align-items: stretch; height: 100vh;">
         <article
                 style="flex: 1; max-width: 80%; border: 1px var(--pico-form-element-border-color) solid; padding: 1rem; display: flex; flex-direction: column;">
-
-            <div style="text-align: center; flex-shrink: 0;">
-                <img src="<?= $profile["avatar"] ?? "N/A" ?>"
-                     alt="Steam Avatar"
-                     style="border-radius: 4px; margin-bottom: 1rem;"
-                >
-
-                <p>
-                    <strong class="steam-username"><?= $profile["personaname"] ?? "N/A" ?></strong><br>
-                    <small style="color: var(--pico-muted-color);">Steam ID: <?= $profile["steamid"] ?? "N/A" ?></small>
-                </p>
-            </div>
-
             <label for="gameSearch" style="flex-shrink: 0;">
                 <input type="search" id="gameSearch" placeholder="Search Games.." style="margin-bottom: 1rem;">
             </label>
@@ -133,7 +97,8 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
                 <span aria-busy="true">Loading games...</span>
             </div>
 
-            <div id="gamesContainer" style="flex: 1; overflow-y: auto; padding-right: 1rem; min-height: 0; display: none;">
+            <div id="gamesContainer"
+                 style="flex: 1; overflow-y: auto; padding-right: 1rem; min-height: 0; display: none; overflow-x: auto;">
                 <div style="text-align: center; margin-bottom: 1rem;">
                     <button id="prevBtn" onclick="changePage(-1)" class="secondary">Previous</button>
                     <span id="pageInfo" style="margin: 0 1rem;"></span>
@@ -160,7 +125,7 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
                 </label>
 
                 <div id="gameslist"
-                     style="flex: 1; overflow-y: auto; padding-right: 1rem; margin-bottom: 1rem; min-height: 0;">
+                     style="flex: 1; overflow-y: auto; padding-right: 1rem; margin-bottom: 1rem; min-height: 0; overflow-x: auto;">
                 </div>
 
                 <div id="selectedGamesInputs"></div>
@@ -213,7 +178,7 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
         try {
             if (searchText.length > 0) {
                 if (searchResults.length === 0) {
-                    const url = `?action=search&name=${encodeURIComponent(searchText)}`;
+                    const url = `getGames.php?action=search&name=${encodeURIComponent(searchText)}`;
                     const response = await fetch(url);
                     searchResults = await response.json();
                 }
@@ -231,7 +196,7 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
                 appendGames(pageGames, true);
             } else {
                 searchResults = [];
-                const url = `?action=games&page=${currentPage}&limit=${gamesPerPage}`;
+                const url = `getGames.php?action=games&page=${currentPage}&limit=${gamesPerPage}`;
                 const response = await fetch(url);
                 const games = await response.json();
 
@@ -259,43 +224,41 @@ $profile = $_SESSION[Identifiers::STEAM_PROFILE][Identifiers::STEAM_PROFILE];
         games.forEach(game => {
             const appid = game.AppID;
             const name = game.Name;
-            const tags = typeof game.Tags === 'string' ? JSON.parse(game.Tags) : game.Tags;
-
             const isSelected = selectedGames.has(appid);
-
             const gameDiv = document.createElement('div');
+            const tags = typeof game.Tags === 'string' ? JSON.parse(game.Tags) : game.Tags || [];
+
             gameDiv.className = 'game-div';
             gameDiv.setAttribute('appid', appid);
             gameDiv.style.display = isSelected ? 'none' : 'flex';
-            gameDiv.onclick = function() { selectGame(appid, name); };
+            gameDiv.style.alignItems = 'center';
+            gameDiv.style.cursor = 'pointer';
+
+            let tooltipText = '';
+            if (tags.length > 0) {
+                const maxVisible = 3;
+                tooltipText = tags.slice(0, maxVisible).join(', ');
+                if (tags.length > maxVisible) {
+                    tooltipText += ` +${tags.length - maxVisible} more`;
+                }
+                gameDiv.setAttribute('data-tooltip', tooltipText);
+            }
+
+            gameDiv.onclick = function () {
+                selectGame(appid, name);
+            };
 
             gameDiv.innerHTML = `
-                <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg"
-                     alt="${name}"
-                     style="display: flex; max-width: 25vh; border-radius: 2px; margin-right: 1rem;">
-                <div style="text-align: left;">
-                    <strong style="font-size: 1.1rem;">${name}</strong><br>
-                </div>
-            `;
+            <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg"
+                 alt="${name}"
+                 class="game-thumbnail"
+                 style="flex-shrink: 0; width: 80px; height: 45px; object-fit: cover;">
+            <div style="flex: 1; margin-left: 0.5rem; word-break: break-word;">
+                <strong style="font-size: 1.1rem;">${name}</strong>
+            </div>
+        `;
 
             gamesList.appendChild(gameDiv);
-
-            if (tags && tags.length > 0) {
-                const tagsDiv = document.createElement('div');
-                tagsDiv.id = `tags-${appid}`;
-                tagsDiv.className = 'game-tags';
-                tagsDiv.style.cssText = 'padding-bottom: 0.5rem; gap: 0.25rem';
-                tagsDiv.style.display = isSelected ? 'none' : 'block';
-
-                tags.forEach(tag => {
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'game-tags-background';
-                    tagSpan.textContent = tag;
-                    tagsDiv.appendChild(tagSpan);
-                });
-
-                gamesList.appendChild(tagsDiv);
-            }
         });
 
         const previousButton = document.getElementById('prevBtn');
