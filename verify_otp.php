@@ -3,7 +3,6 @@
 session_start();
 $errorMessage = '';
 
-// Security: Must come from login.php
 if (!isset($_SESSION['temp_userid'])) {
     header('Location: login.php');
     exit();
@@ -19,7 +18,6 @@ if (isset($_POST['otp'])) {
     if (empty($otp) || strlen($otp) != 6 || !ctype_digit($otp)) {
         $errorMessage = 'Please enter a valid 6-digit code';
     } else {
-        // Verify OTP with broker
         $request = [
             'type' => RequestType::TWO_FA_VERIFY,
             Identifiers::USER_ID => $userid,
@@ -27,15 +25,13 @@ if (isset($_POST['otp'])) {
         ];
         $response = RabbitClient::getConnection()->send_request($request);
         
-        if (is_array($response) && isset($response['success']) && $response['success']) {
-            // === OTP VERIFIED - Set up session (same as old login.php) ===
+        if (is_array($response)) {
             session_regenerate_id();
             $_SESSION[Identifiers::USER_ID] = $response[Identifiers::USER_ID];
             $_SESSION[Identifiers::SESSION_ID] = $response[Identifiers::SESSION_ID];
             $_SESSION[Identifiers::USERNAME] = $response[Identifiers::USERNAME];
             $_SESSION[Identifiers::STEAM_ID] = $response[Identifiers::STEAM_ID];
             
-            // Get Steam profile if available (same as old login.php)
             if (isset($response[Identifiers::STEAM_ID])) {
                 $request = ['type' => RequestType::PROFILE, Identifiers::STEAM_ID => $_SESSION[Identifiers::STEAM_ID]];
                 $response = RabbitClient::getConnection("SteamAPI")->send_request($request);
@@ -44,12 +40,10 @@ if (isset($_POST['otp'])) {
 
             unset($_SESSION['temp_userid']);
             unset($_SESSION['temp_username']);
-            
-            // Login complete - redirect to profile
             header('Location: profile.php');
             exit();
         } else {
-            $errorMessage = isset($response['error']) ? $response['error'] : 'Invalid or expired OTP code';
+            $errorMessage = 'Invalid or expired OTP code';
         }
     }
 }
