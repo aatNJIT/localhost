@@ -3,6 +3,7 @@
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
+require_once('logger.php');
 
 $server = new rabbitMQServer("rabbitMQ.ini", "SteamAPI");
 echo PHP_EOL . "STARTED" . PHP_EOL;
