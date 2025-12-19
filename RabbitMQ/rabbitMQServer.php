@@ -5,6 +5,8 @@ require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 require_once('../MySQL/MySQL.php');
 require_once('/usr/share/php/libphp-phpmailer/autoload.php');
+require_once('logger.php');
+
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
